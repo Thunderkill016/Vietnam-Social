@@ -11,7 +11,7 @@ test.beforeEach(async ({ request }) => {
   );
 });
 
-test("root feels like one local social network and keeps honest empty inventory", async ({
+test("root stays useful while keeping empty inventory honest", async ({
   page,
 }) => {
   await page.goto("/");
