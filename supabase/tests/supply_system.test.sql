@@ -78,11 +78,12 @@ select is(
 
 -- Verify member profile was promoted to 'host' and NOT 'moderator'
 select is(
-  (select role from app_private.profiles where id='20000000-0000-4000-8000-000000000102'),
+  public.viewer_profile()->>'role',
   'host',
   'user role is now host'
 );
 
+reset role;
 -- Verify host is automatically granted membership for the invited venue
 select is(
   (select count(*) from app_private.host_venue_memberships where host_id='20000000-0000-4000-8000-000000000102' and place_id='10000000-0000-4000-8000-000000000101' and status='active'),
@@ -91,6 +92,8 @@ select is(
 );
 
 -- 6. Idempotent acceptance for same user
+set local role authenticated;
+set local request.jwt.claim.sub='20000000-0000-4000-8000-000000000102';
 select is(
   (public.accept_host_invite(current_setting('test.token'))::jsonb->>'already_accepted'),
   'true',
@@ -113,6 +116,7 @@ select lives_ok(
   'host can complete onboarding with organizer details'
 );
 
+reset role;
 select is(
   (select organizer_label from app_private.profiles where id='20000000-0000-4000-8000-000000000102'),
   'CLB Cầu Lông Kỳ Hòa',
@@ -120,6 +124,8 @@ select is(
 );
 
 -- 9. Venue Authorization: Host publishes at authorized venue
+set local role authenticated;
+set local request.jwt.claim.sub='20000000-0000-4000-8000-000000000102';
 select lives_ok(
   $$select public.publish_signal(jsonb_build_object(
     'request_id','30000000-0000-4000-8000-000000000101',
@@ -135,8 +141,12 @@ select lives_ok(
 );
 
 -- 10. Venue Authorization: Host cannot publish at unauthorized venue
+reset role;
 insert into public.places(id,city_id,name,area,longitude,latitude,h3_parent,enabled)
 values('10000000-0000-4000-8000-000000000102','hcm','Hồ Bơi Yết Kiêu Q1','Quận 1',106.698,10.787,'8665b5647ffffff',true);
+
+set local role authenticated;
+set local request.jwt.claim.sub='20000000-0000-4000-8000-000000000102';
 
 select throws_ok(
   $$select public.publish_signal(jsonb_build_object(
