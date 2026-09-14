@@ -19,13 +19,12 @@ test("root is the map-native social network and does not fabricate social activi
     page.getByRole("heading", { name: "Ở đây đang có chuyện gì?" }),
   ).toBeVisible();
   await expect(
-    page.getByText(
-      "Bản demo giữ bản đồ trống thay vì bịa bài đăng hoặc người dùng giả.",
-    ),
+    page.getByText("Bản demo giữ bản đồ trống thay vì bịa", { exact: false }),
   ).toBeVisible();
   await expect(
-    page.getByText("Chưa có tiếng nói nào ở vùng này."),
+    page.getByText("Chưa có lớp xã hội nào ở vùng này."),
   ).toBeVisible();
+  await expect(page.getByText("0 cộng đồng · 0 bài trong vùng bản đồ")).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Xã hội", exact: true }),
   ).toBeVisible();
