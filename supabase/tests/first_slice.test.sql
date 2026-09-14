@@ -10,6 +10,7 @@ insert into auth.users(id,email,raw_user_meta_data) values
 ('20000000-0000-4000-8000-000000000005','mod@test.local','{}');
 update app_private.profiles set role='host',display_name='Host kiểm thử' where id='20000000-0000-4000-8000-000000000001';
 update app_private.profiles set role='moderator' where id='20000000-0000-4000-8000-000000000005';
+insert into app_private.host_venue_memberships(host_id,place_id,granted_by) values ('20000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000005');
 create function pg_temp.input() returns jsonb language sql as $$
  select jsonb_build_object('request_id','30000000-0000-4000-8000-000000000001','title','Cầu lông kiểm thử','description','Fixture only','category','sport','place_id','10000000-0000-4000-8000-000000000001','starts_at',now()-interval '5 minutes','expires_at',now()+interval '1 hour','capacity_note','Còn 2 chỗ');
 $$;

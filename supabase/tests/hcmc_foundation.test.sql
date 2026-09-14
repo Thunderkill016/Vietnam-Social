@@ -35,6 +35,9 @@ update app_private.profiles set role='host',display_name='Host HCMC' where id='2
 insert into public.places(id,city_id,name,area,longitude,latitude,h3_parent)
 values('10000000-0000-4000-8000-000000000088','hcm','Sân Tao Đàn Q1','Quận 1',106.691,10.774,'8665b5647ffffff');
 
+insert into app_private.host_venue_memberships(host_id,place_id,granted_by)
+values('20000000-0000-4000-8000-000000000088','10000000-0000-4000-8000-000000000088','20000000-0000-4000-8000-000000000088');
+
 -- Place outside HCMC (e.g. Da Nang)
 insert into public.places(id,city_id,name,area,longitude,latitude,h3_parent)
 values('10000000-0000-4000-8000-000000000089','hcm','Sân Đà Nẵng','Hải Châu',108.220,16.068,'8665b2d6fffffff');

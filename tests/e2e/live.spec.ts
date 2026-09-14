@@ -46,7 +46,7 @@ test("two independent authenticated sessions: publish, join, confirm, broadcast 
   const hostId = host.data.user.id;
   if (!/^[a-f0-9-]{36}$/.test(hostId)) throw new Error("Unexpected user ID");
   localSql(
-    `update app_private.profiles set role='host',display_name='Host local E2E' where id='${hostId}'`,
+    `update app_private.profiles set role='host',display_name='Host local E2E' where id='${hostId}'; insert into app_private.host_venue_memberships(host_id,place_id,granted_by) values('${hostId}','10000000-0000-4000-8000-000000000001','${hostId}') on conflict do nothing;`,
   );
   const hostContext = await browser.newContext(),
     memberContext = await browser.newContext();

@@ -10,7 +10,7 @@ values(
   10.815,
   13,
   true,
-  'live',
+  'pilot',
   extensions.st_makeenvelope(106.35,10.35,107.05,11.20,4326),
   extensions.st_makeenvelope(106.35,10.35,107.05,11.20,4326)
 ) on conflict(id) do update set

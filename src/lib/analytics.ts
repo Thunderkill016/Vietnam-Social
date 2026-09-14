@@ -20,85 +20,113 @@ const rawCoordinateKeys = [
   "location",
 ] as const;
 
+const baseEventFields = {
+  session_id: z.string().optional(),
+  is_qualified: z.boolean().optional(),
+  is_demo: z.boolean().optional(),
+  is_test: z.boolean().optional(),
+  timestamp: z.number().default(() => Date.now()),
+};
+
 export const analyticsEventSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("map_opened"),
     city_id: z.string(),
     zoom: z.number().optional(),
-    timestamp: z.number().default(() => Date.now()),
+    ...baseEventFields,
   }),
   z.object({
     type: z.literal("area_selected"),
     city_id: z.string(),
     area_name: z.string().optional(),
     coarse_h3: z.string().optional(),
-    timestamp: z.number().default(() => Date.now()),
+    ...baseEventFields,
   }),
   z.object({
     type: z.literal("signal_impression"),
     signal_id: z.string(),
     city_id: z.string(),
     category: z.string(),
-    timestamp: z.number().default(() => Date.now()),
+    ...baseEventFields,
   }),
   z.object({
     type: z.literal("signal_opened"),
     signal_id: z.string(),
     city_id: z.string(),
     category: z.string(),
-    timestamp: z.number().default(() => Date.now()),
+    duration_ms: z.number().optional(),
+    ...baseEventFields,
   }),
   z.object({
     type: z.literal("join_clicked"),
     signal_id: z.string(),
     city_id: z.string(),
-    timestamp: z.number().default(() => Date.now()),
+    ...baseEventFields,
   }),
   z.object({
     type: z.literal("go_clicked"),
     signal_id: z.string(),
     city_id: z.string(),
-    timestamp: z.number().default(() => Date.now()),
+    ...baseEventFields,
   }),
   z.object({
     type: z.literal("share_clicked"),
     signal_id: z.string(),
     city_id: z.string(),
-    timestamp: z.number().default(() => Date.now()),
+    ...baseEventFields,
   }),
   z.object({
     type: z.literal("confirmation_submitted"),
     signal_id: z.string(),
     city_id: z.string(),
-    timestamp: z.number().default(() => Date.now()),
+    ...baseEventFields,
   }),
   z.object({
     type: z.literal("not_there_submitted"),
     signal_id: z.string(),
     city_id: z.string(),
-    timestamp: z.number().default(() => Date.now()),
+    ...baseEventFields,
   }),
   z.object({
     type: z.literal("signal_created"),
     signal_id: z.string(),
     city_id: z.string(),
     category: z.string(),
-    timestamp: z.number().default(() => Date.now()),
+    from_template: z.boolean().optional(),
+    ...baseEventFields,
   }),
   z.object({
     type: z.literal("signal_expired"),
     signal_id: z.string(),
     city_id: z.string(),
-    timestamp: z.number().default(() => Date.now()),
+    ...baseEventFields,
   }),
   z.object({
     type: z.literal("report_submitted"),
     signal_id: z.string(),
     city_id: z.string(),
     reason_code: z.string().optional(),
-    timestamp: z.number().default(() => Date.now()),
+    ...baseEventFields,
   }),
 ]);
+
+/**
+ * Deterministic Qualified Open Definition:
+ * A signal detail view is qualified when:
+ * 1. The modal is intentionally opened (not a map pan or hover).
+ * 2. AND either:
+ *    a) The detail view remains open for >= 2,000ms without being dismissed.
+ *    OR
+ *    b) The user performs an explicit interaction (join, go, share, or expand venue).
+ */
+export const QUALIFIED_OPEN_THRESHOLD_MS = 2000;
+
+export function isQualifiedOpen(
+  durationMs: number,
+  hadExplicitInteraction: boolean = false,
+): boolean {
+  return hadExplicitInteraction || durationMs >= QUALIFIED_OPEN_THRESHOLD_MS;
+}
 
 export type AnalyticsEvent = z.output<typeof analyticsEventSchema>;
 export type AnalyticsEventInput = z.input<typeof analyticsEventSchema>;
@@ -157,6 +185,24 @@ function assertNoRawCoordinates(event: unknown): void {
   }
 }
 
+function getClientSessionId(): string | undefined {
+  if (typeof window === "undefined" || !window.sessionStorage) return undefined;
+  try {
+    let sid = window.sessionStorage.getItem("vs_session_id");
+    if (!sid) {
+      sid =
+        "sess_" +
+        Math.random().toString(36).substring(2, 11) +
+        "_" +
+        Date.now().toString(36);
+      window.sessionStorage.setItem("vs_session_id", sid);
+    }
+    return sid;
+  } catch {
+    return undefined;
+  }
+}
+
 let activeAdapter: AnalyticsAdapter = new ConsoleAnalyticsAdapter();
 
 export function setAnalyticsAdapter(adapter: AnalyticsAdapter): void {
@@ -168,7 +214,11 @@ export function getAnalyticsAdapter(): AnalyticsAdapter {
 }
 
 export function trackEvent(eventInput: AnalyticsEventInput): void {
-  const parsed = analyticsEventSchema.safeParse(eventInput);
+  const payload = {
+    ...eventInput,
+    session_id: eventInput.session_id ?? getClientSessionId(),
+  };
+  const parsed = analyticsEventSchema.safeParse(payload);
   if (!parsed.success) {
     if (process.env.NODE_ENV === "development") {
       console.warn("[Analytics] Invalid event payload:", parsed.error.issues);
@@ -176,4 +226,14 @@ export function trackEvent(eventInput: AnalyticsEventInput): void {
     return;
   }
   activeAdapter.track(parsed.data);
+
+  if (typeof window !== "undefined" && typeof fetch === "function") {
+    fetch("/api/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(parsed.data),
+    }).catch(() => {
+      // silently ignore telemetry send errors
+    });
+  }
 }

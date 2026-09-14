@@ -1,8 +1,14 @@
 import { expect, test } from "@playwright/test";
-test.skip(
-  Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
-  "Read-only demo tests only run without Supabase configuration.",
-);
+test.beforeEach(async ({ request }) => {
+  const bootstrap = await request
+    .get("/api/bootstrap")
+    .then((r) => r.json())
+    .catch(() => ({ mode: "unknown" }));
+  test.skip(
+    bootstrap.mode !== "demo",
+    "Read-only demo tests only run when server is in demo mode.",
+  );
+});
 test("browse, search, inspect details, share and refuse fake participation", async ({
   page,
 }) => {
@@ -13,7 +19,7 @@ test("browse, search, inspect details, share and refuse fake participation", asy
   await expect(
     page.getByText("Địa điểm và hoạt động là minh họa", { exact: false }),
   ).toBeVisible();
-  await expect(page.getByText("TP. Hồ Chí Minh")).toBeVisible();
+  await expect(page.getByText("TP. Hồ Chí Minh").first()).toBeVisible();
   await page
     .getByRole("textbox", { name: "Tìm hoạt động hoặc địa điểm" })
     .fill("cau long");

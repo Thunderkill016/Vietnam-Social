@@ -32,7 +32,7 @@ describe("city domain model & HCMC configuration", () => {
     expect(HCMC_CITY.timezone).toBe("Asia/Ho_Chi_Minh");
     expect(HCMC_CITY.country_code).toBe("VN");
     expect(HCMC_CITY.active).toBe(true);
-    expect(HCMC_CITY.launch_state).toBe("live");
+    expect(HCMC_CITY.launch_state).toBe("pilot");
   });
 
   it("checks coordinates against HCMC operational boundaries", () => {
@@ -186,5 +186,69 @@ describe("request bounds", () => {
         }),
       ),
     ).rejects.toThrow("quá lớn");
+  });
+});
+
+describe("supply pilot domain contracts", () => {
+  it("validates host invite schema", async () => {
+    const { hostInviteSchema } = await import("../src/lib/domain");
+    const valid = {
+      id: "a0000000-0000-4000-8000-000000000001",
+      status: "pending",
+      expires_at: "2026-09-20T10:00:00+07:00",
+      venue_id: "10000000-0000-4000-8000-000000000001",
+      invited_email: "host@example.com",
+    };
+    expect(hostInviteSchema.safeParse(valid).success).toBe(true);
+    expect(
+      hostInviteSchema.safeParse({ ...valid, status: "unknown" }).success,
+    ).toBe(false);
+    expect(
+      hostInviteSchema.safeParse({ ...valid, invited_email: "not-an-email" })
+        .success,
+    ).toBe(false);
+  });
+
+  it("validates activity template schema", async () => {
+    const { activityTemplateSchema } = await import("../src/lib/domain");
+    const valid = {
+      id: "b0000000-0000-4000-8000-000000000001",
+      place_id: "10000000-0000-4000-8000-000000000001",
+      title: "Giao lưu cầu lông tối thứ 5",
+      description: "Sân số 3, mang vợt cá nhân",
+      category: "sport",
+      duration_minutes: 120,
+      capacity_note: "Còn 4 chỗ",
+      created_at: "2026-09-14T10:00:00+07:00",
+    };
+    expect(activityTemplateSchema.safeParse(valid).success).toBe(true);
+    expect(
+      activityTemplateSchema.safeParse({ ...valid, category: "dining" })
+        .success,
+    ).toBe(false);
+    expect(
+      activityTemplateSchema.safeParse({ ...valid, place_id: "bad-uuid" })
+        .success,
+    ).toBe(false);
+  });
+
+  it("validates venue suggestion schema", async () => {
+    const { venueSuggestionSchema } = await import("../src/lib/domain");
+    const valid = {
+      id: "c0000000-0000-4000-8000-000000000001",
+      name: "Sân Cầu Lông Hồ Đắc Di",
+      area: "Tân Phú",
+      address: "123 Hồ Đắc Di, Tây Thạnh, Tân Phú",
+      longitude: 106.63,
+      latitude: 10.81,
+      status: "pending",
+    };
+    expect(venueSuggestionSchema.safeParse(valid).success).toBe(true);
+    expect(
+      venueSuggestionSchema.safeParse({ ...valid, status: "rejected" }).success,
+    ).toBe(true);
+    expect(
+      venueSuggestionSchema.safeParse({ ...valid, status: "invalid" }).success,
+    ).toBe(false);
   });
 });
