@@ -1,122 +1,396 @@
 # Vietnam Social Architecture
 
-Status: Ho Chi Minh City production foundation (Task 002); no full-city user adoption claimed.
+Status: HCMC technical foundation exists; Activity is the most complete shipped module; PRD v1 defines the target map-native social network architecture. No broad social-network adoption is claimed.
 
-## System shape
+## 1. System shape
 
-Vietnam Social starts as a modular monolith. One Next.js application owns the user experience and server boundary. Supabase supplies authentication, PostgreSQL/PostGIS, storage, and realtime delivery.
+Vietnam Social remains a **modular monolith**. One Next.js application owns the user experience and server boundary. Supabase supplies authentication, PostgreSQL/PostGIS, storage, and realtime delivery.
 
 ```mermaid
 flowchart TD
   Web["Next.js PWA"] --> API["Server boundary"]
-  API --> DB["Postgres + PostGIS"]
+  API --> DB["PostgreSQL + PostGIS"]
   API --> Auth["Supabase Auth"]
   API --> RT["Realtime Broadcast"]
   Web --> Map["MapLibre + basemap"]
   DB --> RT
 ```
 
-## Modules
+Do not split the system into microservices merely because the product now has more social primitives. Domain modularity comes before deployment fragmentation.
 
-- `city`: city domain model, PostGIS operational boundaries, launch state
-- `map`: viewport, camera, clusters, Signal markers, honest empty-area UX
-- `signals`: lifecycle, creation, retrieval, expiry, city-scoped queries
-- `trust`: confirmation, rejection, confidence calculation
-- `places`: venue anchors; not a competing place database
-- `auth`: session and authorization
-- `moderation`: reports, resolution, rate limits
-- `analytics`: 12 strongly typed, privacy-preserving product events (zero raw GPS coordinates)
-- `logger`: structured observability with automatic redaction of secrets, tokens, credentials, and coordinates
-- `env`: runtime environment validation (`demo`, `local`, `staging`, `production`) with fail-fast security checks
-- `geo`: PostGIS queries, H3 conversion, location approximation
+## 2. Product composition
 
-Modules may share one deployable and one database, but domain logic must not be duplicated between UI, API routes, and database functions.
+The target product consists of five first-class social primitives connected by the map:
 
-## First vertical slice
+```text
+People ─────┐
+Local Posts ├────► Map / Area Context ◄──── Places
+Communities ┤
+Activities ─┘
+```
 
-1. Host creates an expiring activity at a public venue.
-2. The server validates the time, location policy, and authorization.
-3. PostgreSQL stores the Signal with a geographic point and H3 cell.
-4. A second client queries the current viewport and sees it on MapLibre.
-5. The second user opens the Signal and chooses `join` or `confirm`.
-6. The confidence state changes and reaches the first client without a page reload.
-7. At expiry, the Signal leaves active queries and realtime views.
+The map is a composition/discovery surface. It is not a database or a second source of truth.
 
-## Data decisions
+## 3. Domain modules
 
-- Use `geography(Point, 4326)` for distance-aware queries.
-- Add a GiST index to geographic Signal location.
-- Add partial/compound indexes that support `status = active`, time window, and city queries.
-- Store venue coordinates exactly because the venue is public.
-- For a non-place activity, derive an H3 cell from the submitted point, persist only what the selected privacy mode permits, and publish a cell-derived approximate point.
-- Keep raw device GPS out of analytics.
+### `city`
 
-## Realtime
+- city domain model
+- launch state
+- PostGIS operational boundary
+- city defaults and rollout state
 
-Postgres remains the source of truth. Realtime is an invalidation and update channel, not a second database.
+### `map`
 
-- Partition channels by city and coarse H3 parent cell.
-- Send Signal identifiers and safe display state, not private coordinates or full user profiles.
-- Re-query authoritative data after reconnect or version gaps.
-- Do not subscribe the client to all HCMC events.
+- viewport and camera state
+- zoom-dependent layer composition
+- entity clustering/aggregation
+- area selection
+- accessible list fallback
+- honest empty-area UX
 
-## Trust
+### `profiles`
 
-MVP confidence is deterministic and explainable. It is not machine learning.
+- public social identity
+- safe profile projection
+- contribution history
+- trust/moderation state where appropriate
+- never precise live location
 
-Suggested inputs:
+### `posts`
 
-- source class
-- reporter trust band
-- unique confirmations
-- unique `not_there` votes
-- age decay relative to Signal lifetime
+- Local Post creation and lifecycle
+- safe place/coarse-area attachment
+- post detail
+- reactions
+- comments/replies
 - moderation state
+- discovery projection
 
-The server produces both a numeric internal score and a public label: `unconfirmed`, `likely`, `verified`, or `questionable`. Exact weights remain configurable and require calibration from pilot data.
+### `social-graph`
 
-## Failure posture
+Initial edge:
 
-- If realtime fails, viewport refresh still returns correct data.
-- If the basemap provider fails, product data remains portable and a provider can be swapped.
-- If H3 is unavailable in a request path, exact PostGIS queries remain authoritative.
-- If automated expiry is delayed, all active queries still enforce `expires_at > now()`.
+- person follows person
 
-## Deferred architecture
+Later edges require explicit product approval:
 
-Do not build chat, follower graphs, recommendation ML, merchant billing, cross-city sharding, dedicated search infrastructure, or a separate event-ingestion pipeline in v0.1.
+- user follows community
+- user follows place
+- user follows area
 
-## First-slice implementation details
+Graph relationships must not grant access to private or precise location data.
 
-`src/components/explore.tsx` owns the map/list and dialog journey; `src/components/activity-map.tsx` adapts MapLibre. API routes validate input and forward the caller JWT using the public Supabase key. Mutation authorization and domain rules live in database RPCs, with the private schema excluded from PostgREST.
+### `communities`
 
-`supabase/migrations/202609140001_first_slice.sql` defines the public venue catalog and private profiles/signals/actions/audit tables. Every table has RLS; only explicit public read/RPC grants are available to clients. New users always become members. Operators alone provision venue inventory and host/moderator roles.
+Planned module for persistent groups organized around an interest, institution, locality, or recurring activity.
 
-The first slice accepts public venue IDs only. Location and H3 partitions come from the operator-owned venue record. PostGIS validates the pilot envelope and viewport; no H3 match can substitute for a geographic match. The pilot envelope is a proposed operational boundary, not a claim about administrative district borders.
+Responsibilities eventually include:
 
-The SQL projection computes confidence on read from unique current observations. Mutation audit events preserve reason codes. Natural expiry is enforced by query predicates, with visible-browser refetch at most every 15 seconds and immediate invalidation on writes. Realtime messages carry only an ID; no full row broadcasting is used.
+- public community identity
+- membership
+- moderators
+- posts
+- activities
+- recurring public place relationships
 
-## Task 002 — HCMC production foundation details
+Do not implement full Communities inside the first Local Post slice unless explicitly required.
 
-`supabase/migrations/202609140002_hcmc_foundation.sql` introduces:
+### `signals` / `activities`
 
-- Extended `public.cities` schema: `slug`, `country_code`, `timezone`, `default_longitude`, `default_latitude`, `default_zoom`, `active`, `launch_state`, and `operational_boundary` (`geometry(Polygon, 4326)`).
-- HCMC operational boundary bounding box `[106.35, 10.35, 107.05, 11.20]` enforced by PostGIS in `publish_signal`.
-- `discover_signals` scoped optionally to `city_id` and bounded viewport.
-- Client analytics contract: `src/lib/analytics.ts` defines 12 typed events and enforces an epistemic privacy invariant that strictly rejects raw GPS coordinates (`latitude`, `longitude`, `coords`).
-- Structured logger: `src/lib/logger.ts` outputs machine-readable JSON in production with automatic recursive redaction of credentials, bearer tokens, service-role keys, and coordinate keys.
-- Environment security: `src/lib/env.ts` enforces fail-fast validation across `demo`, `local`, `staging`, and `production`. In production/staging, it guarantees HTTPS endpoints, bans localhost, and fails closed if any service-role or secret key is detected.
+Existing Activity system:
 
-## Task 003 — HCMC supply system & real-world evidence
+- creation
+- public-place anchoring
+- discovery
+- time window
+- expiry
+- join/go
+- confirm/not-there
+- confidence
+- sharing
+- moderation
 
-`supabase/migrations/202609140004_hcmc_supply_system.sql` introduces:
+Activity is now one primitive of the social network, but its time-bounded invariants remain intact.
 
-- **Host Invites (`app_private.host_invites`):** SHA-256 token hashing, single-use acceptance, 7-day TTL, role elevation from `member` to `host`, preventing escalation to `moderator`.
-- **Profile Onboarding:** Extended `app_private.profiles` with `organizer_label`, `bio`, `contact_channel`, and `onboarded_at`.
-- **Host-Venue Authorization (`app_private.host_venue_memberships`):** Enforces that hosts can only publish signals at authorized public venues.
-- **Venue Suggestions (`app_private.venue_suggestions`):** Host queue for operator review, approval, and automated membership creation.
-- **Activity Templates (`app_private.activity_templates`):** Host-isolated templates enabling fast publishing (<60s) with one-click quick time slots.
-- **Analytics Events (`app_private.analytics_events`):** Privacy-preserving real-event logging (zero raw GPS), separating real usage from demo/test traffic.
-- **Operator Dashboard & 7-Day Evidence Gate:** Real-time RPC `supply_dashboard_metrics` tracking host conversion, venue coverage, supply density, qualified opens (>=2s or explicit action), and confirmed actions.
+### `places`
 
-Reference implementations used: [Next.js App Router](https://nextjs.org/docs/app/getting-started), [Supabase PostGIS](https://supabase.com/docs/guides/database/extensions/postgis), [database Broadcast](https://supabase.com/docs/guides/realtime/broadcast), and [MapLibre map initialization](https://maplibre.org/maplibre-gl-js/docs/examples/display-a-map/).
+- approved public physical anchors
+- geographic truth for exact public pins
+- social aggregation surface for posts/activities/communities
+
+Vietnam Social adds social context to places; it should not become a generic global place database.
+
+### `trust`
+
+- deterministic trust inputs
+- progressive-trust state
+- activity confidence
+- contribution reputation inputs where justified
+- explainable server-owned decisions
+
+### `moderation`
+
+- reports
+- quarantine/removal state
+- rate limits
+- abuse controls
+- audit trail
+
+Raw report count alone should not become a trivially weaponized permanent-deletion rule.
+
+### `analytics`
+
+- strongly typed privacy-preserving product events
+- coarse geographic context only
+- explicit real/demo/test separation
+- versioned definitions for investment metrics
+
+### `notifications`
+
+Deferred until required by a validated social slice. When introduced, notifications should be event-derived delivery state, not a new source of product truth.
+
+### `logger`
+
+- structured observability
+- automatic redaction of secrets, tokens, credentials, and coordinate-like sensitive fields
+
+### `env`
+
+- runtime environment validation (`demo`, `local`, `staging`, `production`)
+- fail-fast security checks
+
+### `geo`
+
+- PostGIS queries
+- H3 conversion/aggregation/approximation
+- geographic precision policy
+
+## 4. Source-of-truth rules
+
+- PostgreSQL/PostGIS remains authoritative for persisted domain state and geographic truth.
+- Realtime carries invalidation/update hints, not authoritative business state.
+- Clients never authoritatively compute roles, moderation state, trust, author identity, or location authority.
+- H3 is secondary to PostGIS. It may support aggregation, approximation, partitioning, and clustering.
+- The map UI never becomes an authorization boundary.
+
+## 5. Geographic data policy
+
+### Approved public places
+
+Exact coordinates may be stored and shown for public venues/places that are intended to be discoverable.
+
+### Person-originated content
+
+A Local Post should attach to either:
+
+1. an approved public place, or
+2. an appropriately coarse area representation.
+
+Do not publish a person's raw device coordinates as a social marker.
+
+### Profiles
+
+A profile may express a broad home/interest area only through an explicitly designed privacy-safe field. Presence must not be inferred from a user's current GPS.
+
+### Analytics
+
+Raw device GPS remains prohibited.
+
+## 6. Map entity architecture
+
+The first implementation used Activity markers only. PRD v1 requires the map to support multiple social entity types without turning into visual clutter.
+
+A future map entity projection should provide a common display envelope rather than forcing every domain table into one generic object model.
+
+Conceptual projection:
+
+```ts
+type MapEntity = {
+  id: string;
+  kind: "local_post" | "activity" | "community" | "place";
+  cityId: string;
+  publicPosition?: [number, number];
+  coarseAreaId?: string;
+  title: string;
+  freshness?: string;
+  trustState?: string;
+};
+```
+
+This is an interface concept, not a schema mandate.
+
+Important:
+
+- People are not a default map-marker kind.
+- Different primitives retain their own domain lifecycle.
+- Map projections must contain only safe public fields.
+
+## 7. Next social vertical slice architecture
+
+The next slice is:
+
+`Create Local Post → discover on map → open → react/comment → profile → follow`
+
+Minimum architectural additions:
+
+### Persistence
+
+- private/public-safe profile projection as needed
+- Local Posts
+- reactions
+- comments
+- follows
+- audit/moderation records
+
+### Authorization
+
+- authenticated creation
+- ownership checks
+- idempotent reactions/follows
+- no self-follow
+- RLS on every exposed table
+- server-owned moderation state
+
+### Geography
+
+A post must point to:
+
+- approved `place_id`, or
+- coarse area reference derived through a server-approved path
+
+The client must not be able to declare arbitrary precise location authority.
+
+### Discovery
+
+Initial Local Post discovery should be based on understandable inputs:
+
+- viewport/area
+- place relevance
+- freshness
+- moderation/trust state
+- limited basic engagement inputs
+
+Do not introduce recommendation ML for the first slice.
+
+### Realtime
+
+Realtime may invalidate post/comment/reaction projections, but clients must re-fetch authoritative state after receiving an update.
+
+## 8. Existing Activity architecture
+
+The first shipped vertical slice remains valid:
+
+1. Host creates an expiring Activity at a public venue.
+2. Server validates time, location policy, and authorization.
+3. PostgreSQL stores the Signal with geography and H3 context.
+4. Another client discovers it through the current viewport.
+5. User opens and chooses join/go/confirm actions.
+6. Confidence state changes server-side.
+7. Realtime invalidates clients.
+8. At expiry, the Activity leaves active queries.
+
+Existing guarantees stay in place until an explicit Activity permission redesign is implemented:
+
+- venue authorization
+- expiry
+- confidence
+- idempotent actions
+- moderation
+- analytics privacy
+- real/demo/test evidence separation
+
+## 9. Realtime
+
+Postgres remains the source of truth.
+
+Guidelines:
+
+- partition high-volume channels by city/coarse spatial context when useful
+- send identifiers and safe display state, not private profiles or raw coordinates
+- re-query after reconnect/version gaps
+- avoid subscribing every client to every HCMC event
+- introduce new channels only when measurement shows a need
+
+## 10. Trust and progressive contribution
+
+PRD v1 prefers open authenticated contribution with constrained distribution and progressive trust.
+
+This does not mean trusting every write equally.
+
+Controls can include:
+
+- rate limits
+- account age/history as one signal, not a sole decision
+- safe place/area constraints
+- content validation
+- duplicate detection
+- quarantine
+- moderation history
+- community reports with anti-brigading controls
+
+Verified Host remains a stronger organizer tier with Activity-specific capabilities.
+
+## 11. Failure posture
+
+- If realtime fails, ordinary reads still return correct state.
+- If basemap provider fails, product data remains portable.
+- If H3 is unavailable in a request path, PostGIS remains authoritative.
+- If automated Activity expiry is delayed, active queries still enforce `expires_at > now()`.
+- If social ranking is unavailable, deterministic area/freshness ordering must still produce a usable local view.
+- If a social write fails, the client must not optimistically fabricate durable success.
+
+## 12. Deferred architecture
+
+Do not build these merely because the product is now a social network:
+
+- direct messaging infrastructure
+- group chat
+- story/video/livestream pipeline
+- global recommendation service
+- creator monetization/billing
+- ad platform
+- marketplace/order system
+- contact-book ingestion
+- cross-city sharding
+- Kafka/event-sourcing infrastructure
+- microservice decomposition
+
+## 13. Current implementation details
+
+`src/components/explore.tsx` currently owns the map/list and Activity dialog journey; `src/components/activity-map.tsx` adapts MapLibre.
+
+Current migrations implement:
+
+- city foundation and PostGIS operational boundaries
+- approved places
+- profiles
+- Activity Signals/actions/audit state
+- Activity host invitation/onboarding
+- host-venue authorization
+- templates
+- venue suggestions
+- analytics event storage
+- operator supply metrics
+
+These are **current implementation facts**, not the full target social schema.
+
+## 14. Task history
+
+### Task 001 — Activity vertical slice
+
+Established the first map → Activity → action loop.
+
+### Task 002 — HCMC production foundation
+
+Extended city/domain/environment/analytics/observability foundations and HCMC operational support.
+
+### Task 003 — HCMC supply system
+
+Added host invitation, onboarding, host-venue membership, venue suggestions, templates, analytics evidence separation, and operator supply tooling.
+
+### PRD v1 foundation reset
+
+Reframes the existing Activity implementation as one primitive inside Vietnam Social's broader map-native social network.
+
+No documentation update alone constitutes market validation or a shipped social-network feature.
