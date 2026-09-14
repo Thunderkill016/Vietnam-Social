@@ -63,7 +63,9 @@ export function PublicProfileView({ userId }: { userId: string }) {
     if (!db) return;
     await db.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.href },
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
     });
   };
 
