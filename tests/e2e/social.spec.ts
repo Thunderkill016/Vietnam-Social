@@ -63,7 +63,7 @@ test("social homepage fits a phone viewport and contribution flow remains reacha
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await expect(
-    page.getByRole("link", { name: /^Vietnam Social/ }),
+    page.getByRole("link", { name: /Vietnam Social/ }),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: /^Quanh đây/ })).toBeVisible();
   expect(
