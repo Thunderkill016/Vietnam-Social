@@ -186,9 +186,11 @@ export function OpsDashboardModal({
             </div>
             {metrics?.evidence_gate && (
               <span
-                className={`gate-overall-badge ${gateBadgeClass(metrics.evidence_gate.overall_status)}`}
+                className={`gate-overall-badge ${gateBadgeClass(metrics.evidence_gate.definition === "real_supply_v1" ? metrics.evidence_gate.overall_status : "Chưa có dữ liệu")}`}
               >
-                {metrics.evidence_gate.overall_status}
+                {metrics.evidence_gate.definition === "real_supply_v1"
+                  ? metrics.evidence_gate.overall_status
+                  : "Chưa có dữ liệu"}
               </span>
             )}
           </div>
@@ -253,129 +255,54 @@ export function OpsDashboardModal({
                   </div>
 
                   <div className="gate-grid">
-                    <div className="gate-card">
-                      <div className="gate-card-header">
-                        <span className="gate-card-title">1. Host Cam kết</span>
-                        <span
-                          className={`gate-status-pill ${gateBadgeClass(metrics.evidence_gate.host_target.status)}`}
-                        >
-                          {metrics.evidence_gate.host_target.status}
-                        </span>
-                      </div>
-                      <div className="gate-metric-row">
-                        <span className="gate-num">
-                          {metrics.evidence_gate.host_target.actual}
-                        </span>
-                        <span className="gate-slash">/</span>
-                        <span className="gate-target">
-                          {metrics.evidence_gate.host_target.target} hosts
-                        </span>
-                      </div>
-                      <p className="gate-subtext">
-                        Số host thực tế đã nhận lời mời tham gia thử nghiệm.
-                      </p>
-                    </div>
-
-                    <div className="gate-card">
-                      <div className="gate-card-header">
-                        <span className="gate-card-title">
-                          2. Nguồn cung 7 ngày
-                        </span>
-                        <span
-                          className={`gate-status-pill ${gateBadgeClass(metrics.evidence_gate.supply_target.status)}`}
-                        >
-                          {metrics.evidence_gate.supply_target.status}
-                        </span>
-                      </div>
-                      <div className="gate-metric-row">
-                        <span className="gate-num">
-                          {metrics.evidence_gate.supply_target.actual}
-                        </span>
-                        <span className="gate-slash">/</span>
-                        <span className="gate-target">
-                          {metrics.evidence_gate.supply_target.target} hoạt động
-                        </span>
-                      </div>
-                      <p className="gate-subtext">
-                        Số hoạt động thực tế được tạo trong chu kỳ 7 ngày.
-                      </p>
-                    </div>
-
-                    <div className="gate-card">
-                      <div className="gate-card-header">
-                        <span className="gate-card-title">
-                          3. Tiếp cận Người dùng
-                        </span>
-                        <span
-                          className={`gate-status-pill ${gateBadgeClass(metrics.evidence_gate.demand_target.status)}`}
-                        >
-                          {metrics.evidence_gate.demand_target.status}
-                        </span>
-                      </div>
-                      <div className="gate-metric-row">
-                        <span className="gate-num">
-                          {metrics.evidence_gate.demand_target.actual}
-                        </span>
-                        <span className="gate-slash">/</span>
-                        <span className="gate-target">
-                          {metrics.evidence_gate.demand_target.target} users
-                        </span>
-                      </div>
-                      <p className="gate-subtext">
-                        Người dùng thực tế mở xem chi tiết (Qualified Open).
-                      </p>
-                    </div>
-
-                    <div className="gate-card">
-                      <div className="gate-card-header">
-                        <span className="gate-card-title">
-                          4. Hành động Xác nhận Thực tế
-                        </span>
-                        <span
-                          className={`gate-status-pill ${gateBadgeClass(metrics.evidence_gate.action_target.status)}`}
-                        >
-                          {metrics.evidence_gate.action_target.status}
-                        </span>
-                      </div>
-                      <div className="gate-metric-row">
-                        <span className="gate-num">
-                          {metrics.evidence_gate.action_target.actual}
-                        </span>
-                        <span className="gate-slash">/</span>
-                        <span className="gate-target">
-                          {metrics.evidence_gate.action_target.target} hành động
-                        </span>
-                      </div>
-                      <p className="gate-subtext">
-                        Người dùng bấm tham gia và xác nhận sau giờ bắt đầu.
-                      </p>
-                    </div>
-
-                    <div className="gate-card">
-                      <div className="gate-card-header">
-                        <span className="gate-card-title">
-                          5. Người dùng Quay lại
-                        </span>
-                        <span
-                          className={`gate-status-pill ${gateBadgeClass(metrics.evidence_gate.return_target.status)}`}
-                        >
-                          {metrics.evidence_gate.return_target.status}
-                        </span>
-                      </div>
-                      <div className="gate-metric-row">
-                        <span className="gate-num">
-                          {metrics.evidence_gate.return_target.actual}
-                        </span>
-                        <span className="gate-slash">/</span>
-                        <span className="gate-target">
-                          {metrics.evidence_gate.return_target.target} users
-                        </span>
-                      </div>
-                      <p className="gate-subtext">
-                        Người dùng tự nguyện tương tác trên &gt;= 2 ngày khác
-                        nhau.
-                      </p>
-                    </div>
+                    {(
+                      [
+                        [
+                          "active_hosts",
+                          "Host hoạt động",
+                          "Host đăng hoạt động thật trong 7 ngày.",
+                        ],
+                        [
+                          "recurrent_hosts",
+                          "Host quay lại đăng",
+                          "Đăng trên ít nhất 2 ngày Việt Nam trong 7 ngày.",
+                        ],
+                        [
+                          "active_venues",
+                          "Địa điểm đang có hoạt động",
+                          "Địa điểm thật có hoạt động trong cửa sổ khám phá.",
+                        ],
+                        [
+                          "confirmed_actions",
+                          "Tham gia đã xác nhận",
+                          "Cùng người tham gia join/go và xác nhận hợp lệ sau giờ bắt đầu.",
+                        ],
+                      ] as const
+                    ).map(([key, label, description]) => {
+                      const metric = metrics.evidence_gate[key];
+                      return (
+                        <div className="gate-card" key={key}>
+                          <div className="gate-card-header">
+                            <span className="gate-card-title">{label}</span>
+                            <span
+                              className={`gate-status-pill ${gateBadgeClass(metric?.status ?? "NOT STARTED")}`}
+                            >
+                              {metric?.status ?? "Chưa có dữ liệu"}
+                            </span>
+                          </div>
+                          <div className="gate-metric-row">
+                            <span className="gate-num">
+                              {metric?.actual ?? "—"}
+                            </span>
+                            <span className="gate-slash">/</span>
+                            <span className="gate-target">
+                              {metric?.target ?? "—"}
+                            </span>
+                          </div>
+                          <p className="gate-subtext">{description}</p>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -500,7 +427,9 @@ export function OpsDashboardModal({
                       <span className="mini-stat-val">
                         {metrics.venues.approved}
                       </span>
-                      <span className="mini-stat-lbl">Địa điểm Hoạt động</span>
+                      <span className="mini-stat-lbl">
+                        Địa điểm thật đang bật
+                      </span>
                     </div>
                     <div className="mini-stat-card">
                       <span className="mini-stat-val">
@@ -516,6 +445,10 @@ export function OpsDashboardModal({
                     </div>
                   </div>
 
+                  <p>
+                    Fixture/test: {metrics.venues.fixture ?? "Chưa phân loại"}.
+                    Không tính vào cung thật hoặc tiêu chí 7 ngày.
+                  </p>
                   <div className="venue-create-card">
                     <h4>Thêm Địa điểm Công cộng Mới vào HCMC</h4>
                     <form onSubmit={handleCreateVenue} className="stack-form">

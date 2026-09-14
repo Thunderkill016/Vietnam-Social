@@ -141,19 +141,27 @@ Hosts need to publish recurring sessions in 30–60 seconds without re-typing ve
   - An attendee who clicked `join` or `go` submits `confirm` after `starts_at`.
   - The author cannot confirm their own activity.
 - **Real vs Demo/Test Separation:**
-  - Events have `is_demo: boolean` and `is_test: boolean`.
-  - Analytics and dashboard metrics filter strictly: `is_demo = false and is_test = false`.
+  - Server-owned `traffic_class = real` and `event_source = client_observation` qualify observations. `is_demo/is_test` are legacy compatibility fields, never sufficient evidence; `unverified_legacy` is excluded.
+  - Supply requires an enabled Place with `data_origin = real`, a non-test author (private `analytics_test_actors` registry), non-removed Signal and non-future creation. Expired/completed Signals remain historical supply; active discovery additionally requires active status, unexpired time and starts within 6 hours.
+  - Fixture Places remain available to existing local/CI Activity flows; inventory reports them separately as `venues.fixture`. Disabled inventory counts only real Places. Host links exclude test hosts and fixture/disabled Places. Invite funnel excludes registered inviters/acceptors and fixture-linked invites; unknown invite recipients are not evidence of active hosts.
+  - Demand counts distinct nonempty sessions on real Signals (impressions or qualified opens), not identified people. Returning users require persisted actions on real Signals across >=2 Vietnam-local days in the last 7 days, excluding authors and registered test actors.
+  - Confirmed actions require persisted attendance plus same-participant confirmation within the activity window, after attendance, no later than now; Signals were created in the last 7 days. Browser telemetry never establishes participation.
+  - `WMLC_v0` remains a separate metric from authoritative `social_action_events`; this supply gate does not change it.
 
 ### 7.2 The 7-Day Gate Thresholds
 
-| Metric                | Threshold | Current Target | Description                                                                     |
-| --------------------- | --------- | -------------- | ------------------------------------------------------------------------------- |
-| **Active Hosts**      | `>= 5`    | 5              | Unique real hosts who published at least 1 verified activity in the last 7 days |
-| **Recurrent Hosts**   | `>= 3`    | 3              | Real hosts who published activities on at least 2 distinct days                 |
-| **Active Venues**     | `>= 3`    | 3              | Distinct public venues with active signals in HCMC                              |
-| **Confirmed Actions** | `>= 10`   | 10             | Independent participant confirmations post-activity                             |
+| Metric                | Threshold | Current Target | Description                                                                                                        |
+| --------------------- | --------- | -------------- | ------------------------------------------------------------------------------------------------------------------ |
+| **Active Hosts**      | `>= 5`    | 5              | Unique real hosts who published at least 1 verified activity in the last 7 days                                    |
+| **Recurrent Hosts**   | `>= 3`    | 3              | Real hosts who published activities on at least 2 distinct `Asia/Ho_Chi_Minh` calendar days within the last 7 days |
+| **Active Venues**     | `>= 3`    | 3              | Distinct public venues with active signals in HCMC                                                                 |
+| **Confirmed Actions** | `>= 10`   | 10             | Independent participant confirmations post-activity                                                                |
 
 ---
+
+The canonical `evidence_gate` fields are `active_hosts`, `recurrent_hosts`, `active_venues`, `confirmed_actions`, with targets 5/3/3/10. Overall is PASS only when all four pass, IN PROGRESS if any real counter is positive, otherwise NOT STARTED. Venue inventory and browser demand cannot independently advance readiness.
+
+Migration 010 adds `definition=real_supply_v1`. Old `host_target/supply_target/demand_target/action_target/return_target` keys retain historical 10/30/50/15/5 informational targets solely for API compatibility (`legacy_targets_informational=true`); they are not readiness criteria. The UI displays only the canonical four. Host publication funnel is lifetime; active/recurrent host gate uses the rolling seven-day window. Day distributions and returning users use Vietnam local dates.
 
 ## 8. 10-Step Operator Runbook
 
