@@ -12,7 +12,7 @@ test.beforeEach(async ({ request }) => {
 test("browse, search, inspect details, share and refuse fake participation", async ({
   page,
 }) => {
-  await page.goto("/activities");
+  await page.goto("/activities/manage");
   await expect(
     page.getByRole("heading", { name: "Một cuộc hẹn ở ngay gần bạn." }),
   ).toBeVisible();
@@ -53,7 +53,7 @@ test("mobile fits screen, supports list fallback and keyboard dialog", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/activities");
+  await page.goto("/activities/manage");
   await expect(
     page.getByRole("button", { name: /Thể thao.*Cầu lông tối nay/ }),
   ).toBeVisible();
@@ -128,7 +128,7 @@ test("map worker processes data without a third-party network dependency", async
       },
     });
   });
-  await page.goto("/activities");
+  await page.goto("/activities/manage");
   await expect(page.locator(".map-canvas")).toHaveAttribute(
     "data-state",
     "ready",
@@ -144,7 +144,7 @@ test("map worker processes data without a third-party network dependency", async
 test("publishing form exposes unambiguous category and venue labels", async ({
   page,
 }) => {
-  await page.goto("/activities");
+  await page.goto("/activities/manage");
   await page
     .getByRole("button", { name: "Đăng hoạt động", exact: true })
     .click();
@@ -167,7 +167,7 @@ test("displays honest empty state when viewport has no active signals", async ({
   page,
 }) => {
   await page.goto(
-    "/activities?west=106.90&south=10.40&east=106.95&north=10.45",
+    "/activities/manage?west=106.90&south=10.40&east=106.95&north=10.45",
   );
   await expect(
     page.getByRole("heading", {
