@@ -909,7 +909,10 @@ export function Explore({ initialId }: { initialId?: string }) {
                     {selected.is_demo ? (
                       selected.place_name
                     ) : (
-                      <Link href={`/p/${selected.place_id}`}>
+                      <Link
+                        href={`/p/${selected.place_id}`}
+                        aria-label={`Xem địa điểm ${selected.place_name}`}
+                      >
                         {selected.place_name} →
                       </Link>
                     )}
