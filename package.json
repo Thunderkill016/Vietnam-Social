@@ -26,6 +26,7 @@
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.23",
     "@supabase/supabase-js": "^2.116.0",
+    "@vercel/speed-insights": "^2.0.0",
     "h3-js": "^4.5.0",
     "lucide-react": "^1.45.0",
     "maplibre-gl": "^6.9.0",
