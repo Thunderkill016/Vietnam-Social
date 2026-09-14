@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { localFollowReturnPath } from "@/lib/place";
 import { browserSupabase } from "@/lib/supabase";
 import { LoaderCircle } from "lucide-react";
 
@@ -24,7 +25,11 @@ export default function AuthCallbackPage() {
           setTimeout(() => router.replace("/"), 3000);
           return;
         }
-        router.replace("/");
+        router.replace(
+          localFollowReturnPath(
+            new URLSearchParams(window.location.search).get("next"),
+          ),
+        );
       })
       .catch((err: Error) => {
         setError(err.message || "Lỗi xác thực");

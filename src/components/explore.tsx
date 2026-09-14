@@ -904,7 +904,16 @@ export function Explore({ initialId }: { initialId?: string }) {
               <div>
                 <MapPin />
                 <span>
-                  Địa điểm công cộng<strong>{selected.place_name}</strong>
+                  Địa điểm công cộng
+                  <strong>
+                    {selected.is_demo ? (
+                      selected.place_name
+                    ) : (
+                      <Link href={`/p/${selected.place_id}`}>
+                        {selected.place_name} →
+                      </Link>
+                    )}
+                  </strong>
                 </span>
               </div>
               <div>

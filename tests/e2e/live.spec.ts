@@ -133,6 +133,92 @@ test("two independent authenticated sessions: publish, join, confirm, broadcast 
         `select count(*) from app_private.actions where signal_id='${signalId}' and value='confirm'`,
       ).trim(),
     ).toBe("1");
+    // Phase D: use the same isolated identities and real public venue as the Activity flow.
+    const placeId = "10000000-0000-4000-8000-000000000001";
+    const headers = { Authorization: `Bearer ${access}` };
+    const createdCommunity = await m.request.post("/api/communities", {
+      headers,
+      data: {
+        name: `Cộng đồng địa điểm ${run}`,
+        category: "hobby",
+        place_id: placeId,
+      },
+    });
+    expect(createdCommunity.ok()).toBe(true);
+    const communityId = (await createdCommunity.json()).id;
+    const createdPost = await m.request.post("/api/posts", {
+      headers,
+      data: {
+        request_id: randomUUID(),
+        post_type: "update",
+        body: `Chia sẻ tại địa điểm kiểm thử ${run}`,
+        place_id: placeId,
+      },
+    });
+    expect(createdPost.ok()).toBe(true);
+    const postId = (await createdPost.json()).id;
+    await m.goto(`/?post=${postId}`);
+    await m
+      .getByRole("dialog")
+      .getByRole("link", { name: /Xem địa điểm/ })
+      .click();
+    await expect(m).toHaveURL(new RegExp(`/p/${placeId}$`));
+    await expect(
+      m.getByRole("link", { name: new RegExp(title) }),
+    ).toBeVisible();
+    await expect(
+      m.getByRole("link", { name: new RegExp(`Cộng đồng địa điểm ${run}`) }),
+    ).toBeVisible();
+    await m
+      .getByRole("button", { name: "Theo dõi địa điểm", exact: true })
+      .click();
+    await expect(
+      m.getByRole("button", { name: "Bỏ theo dõi địa điểm", exact: true }),
+    ).toBeEnabled();
+    const areaButton = m.getByRole("button", { name: /^Theo dõi / });
+    await areaButton.click();
+    await expect(m.getByRole("button", { name: /^Bỏ theo dõi / })).toHaveCount(
+      2,
+    );
+    await m.reload();
+    await expect(m.getByRole("button", { name: /^Bỏ theo dõi / })).toHaveCount(
+      2,
+    );
+    await m
+      .getByRole("navigation")
+      .getByRole("link", { name: "Đang theo dõi", exact: true })
+      .click();
+    await expect(m.locator(`a[href="/p/${placeId}"]`)).toBeVisible();
+    await m.locator('a[href^="/a?"]').click();
+    await expect(
+      m.getByRole("link", { name: new RegExp(title) }),
+    ).toBeVisible();
+    await m.locator(`a[href="/p/${placeId}"]`).click();
+    await m
+      .getByRole("button", { name: "Bỏ theo dõi địa điểm", exact: true })
+      .click();
+    await expect(
+      m.getByRole("button", { name: "Theo dõi địa điểm", exact: true }),
+    ).toBeEnabled();
+    await m.getByRole("button", { name: /^Bỏ theo dõi / }).click();
+    await expect(m.getByRole("button", { name: /^Bỏ theo dõi / })).toHaveCount(
+      0,
+    );
+    await m.goto(`/c/${communityId}`);
+    await m.locator(`a[href="/p/${placeId}"]`).click();
+    await expect(
+      m.getByRole("heading", { name: "Bài địa phương", exact: true }),
+    ).toBeVisible();
+    await m.setViewportSize({ width: 390, height: 844 });
+    expect(
+      await m.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await m.screenshot({ path: "artifacts/live-place-following.png" });
+    // Return to the original detail before testing its expiry behavior below.
+    await m.goto(`/s/${signalId}`);
+    await expect(m.getByRole("dialog")).toBeVisible();
     localSql(
       `update app_private.signals set starts_at=now()-interval '1 hour',expires_at=now()+interval '3 seconds' where id='${signalId}'`,
     );

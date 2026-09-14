@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Bell, MapPin } from "lucide-react";
 import { browserSupabase } from "@/lib/supabase";
-import type { LocalFollows } from "@/lib/place";
+import { areaHref, type LocalFollows } from "@/lib/place";
 import styles from "./place-page.module.css";
 
 type ApiErrorBody = { error?: string };
@@ -33,6 +33,7 @@ export function FollowingPage() {
     const db = browserSupabase();
     const session = db ? (await db.auth.getSession()).data.session : null;
     if (!session) {
+      setData(null);
       setLoading(false);
       setNotice("Đăng nhập để xem các địa điểm và khu vực bạn đang theo dõi.");
       return;
@@ -42,6 +43,7 @@ export function FollowingPage() {
       setData(await api<LocalFollows>("/api/follows/local"));
       setNotice("");
     } catch (error) {
+      setData(null);
       setNotice((error as Error).message);
     } finally {
       setLoading(false);
@@ -50,6 +52,11 @@ export function FollowingPage() {
 
   useEffect(() => {
     void load();
+    const db = browserSupabase();
+    const subscription = db?.auth.onAuthStateChange(() => {
+      void load();
+    });
+    return () => subscription?.data.subscription.unsubscribe();
   }, [load]);
 
   const signIn = async () => {
@@ -57,7 +64,9 @@ export function FollowingPage() {
     if (!db) return setNotice("Cần kết nối Supabase để đăng nhập.");
     await db.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?${new URLSearchParams({ next: "/following" })}`,
+      },
     });
   };
 
@@ -76,7 +85,7 @@ export function FollowingPage() {
       </header>
 
       <section className={styles.hero}>
-        <div className={styles.eyebrow}>LOCAL RELATIONSHIPS</div>
+        <div className={styles.eyebrow}>ĐANG THEO DÕI</div>
         <h1>Những nơi bạn muốn quay lại</h1>
         <p>
           Đây là các địa điểm và khu vực công cộng bạn chủ động theo dõi. Danh
@@ -96,7 +105,11 @@ export function FollowingPage() {
             <p className={styles.muted}>Đang tải…</p>
           ) : data?.places.length ? (
             data.places.map((place) => (
-              <Link key={place.id} href={`/p/${place.id}`} className={styles.item}>
+              <Link
+                key={place.id}
+                href={`/p/${place.id}`}
+                className={styles.item}
+              >
                 <strong>{place.name}</strong>
                 <div className={styles.itemMeta}>
                   <span>
@@ -109,26 +122,44 @@ export function FollowingPage() {
               </Link>
             ))
           ) : (
-            <p className={styles.empty}>Bạn chưa theo dõi địa điểm nào.</p>
+            <p className={styles.empty}>
+              {data
+                ? "Bạn chưa theo dõi địa điểm nào."
+                : "Danh sách riêng của bạn sẽ hiện sau khi đăng nhập."}
+            </p>
           )}
         </div>
 
         <aside className={styles.card}>
           <div className={styles.sectionHeader}>
             <h2>Khu vực</h2>
-            <span className={styles.count}>{data?.areas.length ?? 0} khu vực</span>
+            <span className={styles.count}>
+              {data?.areas.length ?? 0} khu vực
+            </span>
           </div>
           {data?.areas.length ? (
             data.areas.map((area) => (
-              <div key={`${area.city_id}:${area.area}`} className={styles.item}>
-                <strong>{area.area}</strong>
+              <Link
+                href={areaHref(area.city_id, area.area)}
+                key={`${area.city_id}:${area.area}`}
+                className={styles.item}
+              >
+                <strong>
+                  {area.area} · {area.city_name}
+                </strong>
                 <div className={styles.itemMeta}>
-                  <span>{area.follower_count} người theo dõi khu vực</span>
+                  <span>
+                    {area.follower_count} người theo dõi khu vực · Khám phá →
+                  </span>
                 </div>
-              </div>
+              </Link>
             ))
           ) : (
-            <p className={styles.empty}>Bạn chưa theo dõi khu vực nào.</p>
+            <p className={styles.empty}>
+              {data
+                ? "Bạn chưa theo dõi khu vực nào."
+                : "Đăng nhập để xem khu vực đang theo dõi."}
+            </p>
           )}
           {!data && !loading && (
             <button className={styles.primary} onClick={() => void signIn()}>

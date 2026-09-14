@@ -4,7 +4,8 @@ import { requestSupabase } from "@/lib/supabase";
 
 export async function GET(request: Request) {
   const db = requestSupabase(request);
-  if (!db) return failure("Theo dõi địa phương chưa có trong bản xem thử.", 404);
+  if (!db)
+    return failure("Theo dõi địa phương chưa có trong bản xem thử.", 404);
   if (!request.headers.get("authorization"))
     return failure("Bạn cần đăng nhập.", 401);
 
