@@ -2,12 +2,14 @@ import {
   boundsSchema,
   createSignalSchema,
   HCMC_CITY,
+  isKnownFixturePlace,
   signalSchema,
 } from "@/lib/domain";
 import { databaseFailure, failure, ok, readBody } from "@/lib/api";
 import { requestSupabase } from "@/lib/supabase";
 import { demoSignals } from "@/lib/demo";
 import { trackEvent } from "@/lib/analytics";
+import { publicConfig } from "@/lib/env";
 
 // Default initial bounded viewport around central HCMC
 const DEFAULT_VIEWPORT = {
@@ -65,9 +67,16 @@ export async function GET(request: Request) {
     });
   }
 
+  const config = publicConfig();
+  const signals = parsed.data.filter(
+    (signal) =>
+      (config.env !== "production" && config.env !== "staging") ||
+      !isKnownFixturePlace(signal.place_id),
+  );
+
   return ok({
     mode: "live",
-    signals: parsed.data,
+    signals,
     truncated: parsed.data.length === 100,
   });
 }
@@ -94,6 +103,14 @@ export async function POST(request: Request) {
 
   const parsed = createSignalSchema.safeParse(body);
   if (!parsed.success) return failure(parsed.error.issues[0].message);
+
+  const config = publicConfig();
+  if (
+    (config.env === "production" || config.env === "staging") &&
+    isKnownFixturePlace(parsed.data.place_id)
+  ) {
+    return failure("Địa điểm không khả dụng.", 404);
+  }
 
   const { data, error } = await db.rpc("publish_signal", {
     p_input: parsed.data,
