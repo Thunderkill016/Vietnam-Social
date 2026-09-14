@@ -144,7 +144,15 @@ export function UnifiedSocialExplore({
 }: UnifiedSocialExploreProps = {}) {
   const [city, setCity] = useState<CityConfig>(HCMC_CITY);
   const [bounds, setBounds] = useState<Bounds>(DEFAULT_BOUNDS);
-  const [filter, setFilter] = useState<SocialMapFilter>(initialFilter);
+  const [filter, setFilter] = useState<SocialMapFilter>(() => {
+    if (typeof window === "undefined") return initialFilter;
+    const requestedLayer = new URLSearchParams(window.location.search).get(
+      "layer",
+    ) as SocialMapFilter | null;
+    return requestedLayer && SOCIAL_MAP_FILTERS.includes(requestedLayer)
+      ? requestedLayer
+      : initialFilter;
+  });
   const [query, setQuery] = useState("");
   const [data, setData] = useState<UnifiedSocialMapResponse>({
     mode: "demo",
@@ -171,14 +179,6 @@ export function UnifiedSocialExplore({
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const requestedLayer = params.get("layer") as SocialMapFilter | null;
-    if (
-      requestedLayer &&
-      SOCIAL_MAP_FILTERS.includes(requestedLayer as SocialMapFilter)
-    ) {
-      setFilter(requestedLayer);
-    }
-
     const id = params.get("post");
     if (!id) return;
     let active = true;
