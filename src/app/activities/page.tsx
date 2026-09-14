@@ -1,5 +1,5 @@
-import { Explore } from "@/components/explore";
+import { UnifiedSocialExplore } from "@/components/unified-social-explore";
 
 export default function ActivitiesPage() {
-  return <Explore />;
+  return <UnifiedSocialExplore initialFilter="activity" />;
 }

@@ -11,43 +11,50 @@ test.beforeEach(async ({ request }) => {
   );
 });
 
-test("root is one unified social map and keeps honest empty inventory", async ({
+test("root feels like one local social network and keeps honest empty inventory", async ({
   page,
 }) => {
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "Ở đây đang có chuyện gì?" }),
+    page.getByRole("heading", { name: "Khám phá quanh đây" }),
   ).toBeVisible();
   await expect(
-    page.getByText("Bản demo không bịa hoạt động xã hội", { exact: false }),
+    page.getByText(
+      "Bản xem trước không tạo người, bài viết hay hoạt động giả",
+      {
+        exact: false,
+      },
+    ),
   ).toBeVisible();
   await expect(
-    page.getByText("Chưa có dữ liệu thật cho lớp này trong vùng bản đồ."),
+    page.getByText("Chưa có câu chuyện nào ở vùng này."),
   ).toBeVisible();
   await expect(
-    page.getByText("0 bài · 0 cộng đồng · 0 hoạt động · 0 địa điểm"),
+    page.getByPlaceholder("Tìm bài viết, cộng đồng, hoạt động, khu vực..."),
   ).toBeVisible();
 
   for (const label of [
-    "Tất cả",
-    "Bài địa phương (0)",
-    "Cộng đồng (0)",
-    "Hoạt động (0)",
-    "Địa điểm (0)",
+    /^Quanh đây/,
+    /^Bài viết/,
+    /^Cộng đồng/,
+    /^Hoạt động/,
+    /^Địa điểm/,
   ]) {
     await expect(page.getByRole("button", { name: label })).toBeVisible();
   }
 
-  await page.getByRole("button", { name: "Cộng đồng (0)" }).click();
+  await page.getByRole("button", { name: /^Cộng đồng/ }).click();
   await expect(page).toHaveURL(/layer=community/);
-  await page.getByRole("button", { name: "Tất cả" }).click();
+  await page.getByRole("button", { name: /^Quanh đây/ }).click();
   await expect(page).not.toHaveURL(/layer=/);
 
-  await page.getByRole("link", { name: "Hoạt động", exact: false }).click();
-  await expect(page).toHaveURL(/\/activities$/);
+  await page.goto("/activities");
   await expect(
-    page.getByRole("heading", { name: "Một cuộc hẹn ở ngay gần bạn." }),
+    page.getByRole("heading", { name: "Khám phá quanh đây" }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /^Hoạt động/ }),
+  ).toHaveAttribute("aria-pressed", "true");
 });
 
 test("social homepage fits a phone viewport and contribution flow remains reachable", async ({
@@ -55,8 +62,9 @@ test("social homepage fits a phone viewport and contribution flow remains reacha
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
+  await expect(page.getByRole("button", { name: /^Quanh đây/ })).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Ở đây đang có chuyện gì?" }),
+    page.getByPlaceholder("Tìm bài viết, cộng đồng, hoạt động, khu vực..."),
   ).toBeVisible();
   expect(
     await page.evaluate(
@@ -64,7 +72,10 @@ test("social homepage fits a phone viewport and contribution flow remains reacha
     ),
   ).toBe(true);
 
-  await page.getByRole("link", { name: "Đóng góp", exact: false }).click();
+  await page
+    .getByRole("link", { name: /Chia sẻ/ })
+    .first()
+    .click();
   await expect(page).toHaveURL(/\/contribute$/);
   await page.getByRole("button", { name: "Đăng bài địa phương" }).click();
   await expect(

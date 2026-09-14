@@ -2,17 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Marker, type Map as MapInstance } from "maplibre-gl";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, MapPin } from "lucide-react";
 import { HCMC_CITY, type Bounds, type CityConfig } from "@/lib/domain";
 import { publicConfig } from "@/lib/env";
 import type { SocialMapEntity } from "@/lib/social-map";
-import styles from "./social-explore.module.css";
+import styles from "./vietnam-social-v1.module.css";
 
 const PIN_LABEL: Record<SocialMapEntity["kind"], string> = {
-  local_post: "•",
-  community: "C",
-  activity: "A",
-  place: "P",
+  local_post: "✎",
+  community: "◎",
+  activity: "↗",
+  place: "⌖",
 };
 
 export function UnifiedSocialMap({
@@ -151,19 +151,19 @@ export function UnifiedSocialMap({
       <div
         ref={container}
         className={styles.mapCanvas}
-        aria-label="Bản đồ xã hội thống nhất TP. Hồ Chí Minh"
+        aria-label={`Bản đồ đời sống xã hội tại ${city.name}`}
       />
       {!loaded && !failed && (
-        <div className={styles.mapStatus}>Đang tải bản đồ xã hội…</div>
+        <div className={styles.mapStatus}>Đang mở bản đồ quanh bạn…</div>
       )}
       {failed && (
         <div className={styles.mapWarning} role="status">
-          <AlertCircle size={18} /> Không tải được nền bản đồ. Danh sách xã hội
-          vẫn dùng được.
+          <AlertCircle size={18} /> Không tải được nền bản đồ. Bạn vẫn có thể
+          xem danh sách bên cạnh.
         </div>
       )}
       <div className={styles.mapLabel}>
-        SOCIAL MAP · <strong>{city.name}</strong>
+        <MapPin size={14} /> <strong>{city.name}</strong> · đời sống quanh đây
       </div>
     </div>
   );

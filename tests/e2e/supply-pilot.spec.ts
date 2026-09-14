@@ -14,8 +14,10 @@ test("invite landing page handles invalid or expired token gracefully", async ({
   await expect(page).toHaveURL("/");
 });
 
-test("supply pilot UI elements exist in explore view", async ({ page }) => {
-  await page.goto("/activities");
+test("supply pilot UI elements remain available in the activity management view", async ({
+  page,
+}) => {
+  await page.goto("/activities/manage");
   await expect(page.getByText("TP. Hồ Chí Minh").first()).toBeVisible();
   const signalCard = page.getByRole("button", {
     name: /Thể thao.*Cầu lông tối nay/,
@@ -29,7 +31,7 @@ test("supply pilot UI elements exist in explore view", async ({ page }) => {
 });
 
 test("create modal supports quick slots and templates", async ({ page }) => {
-  await page.goto("/activities");
+  await page.goto("/activities/manage");
   await page
     .getByRole("button", { name: "Đăng hoạt động", exact: true })
     .click();

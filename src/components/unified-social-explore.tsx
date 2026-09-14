@@ -6,17 +6,26 @@ import * as Dialog from "@radix-ui/react-dialog";
 import {
   Activity,
   Compass,
+  Heart,
   LoaderCircle,
   MapPin,
   MessageCircle,
   Plus,
-  Sparkles,
+  Search,
+  ShieldCheck,
   Users,
   X,
 } from "lucide-react";
-import { HCMC_CITY, type Bounds, type CityConfig } from "@/lib/domain";
-import { LOCAL_POST_TYPES, type LocalPost } from "@/lib/social";
-import { type Community } from "@/lib/community";
+import {
+  CATEGORIES,
+  CONFIDENCE_LABELS,
+  HCMC_CITY,
+  timeLabel,
+  type Bounds,
+  type CityConfig,
+} from "@/lib/domain";
+import { LOCAL_POST_TYPES, localPostAge, type LocalPost } from "@/lib/social";
+import { COMMUNITY_CATEGORIES, type Community } from "@/lib/community";
 import { trackEvent } from "@/lib/analytics";
 import {
   SOCIAL_MAP_FILTERS,
@@ -27,7 +36,7 @@ import {
 } from "@/lib/social-map";
 import { browserSupabase } from "@/lib/supabase";
 import { UnifiedSocialMap } from "./unified-social-map";
-import styles from "./social-explore.module.css";
+import styles from "./vietnam-social-v1.module.css";
 
 const DEFAULT_BOUNDS: Bounds = {
   west: 106.62,
@@ -38,14 +47,26 @@ const DEFAULT_BOUNDS: Bounds = {
 };
 
 const FILTER_LABELS: Record<SocialMapFilter, string> = {
-  all: "Tất cả",
-  local_post: "Bài địa phương",
+  all: "Quanh đây",
+  local_post: "Bài viết",
   community: "Cộng đồng",
   activity: "Hoạt động",
   place: "Địa điểm",
 };
 
+const FILTER_ICONS = {
+  all: Compass,
+  local_post: MessageCircle,
+  community: Users,
+  activity: Activity,
+  place: MapPin,
+} satisfies Record<SocialMapFilter, typeof Compass>;
+
 type ApiError = { error?: string };
+
+type UnifiedSocialExploreProps = {
+  initialFilter?: SocialMapFilter;
+};
 
 async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const db = browserSupabase();
@@ -68,6 +89,24 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 function entityKey(entity: SocialMapEntity) {
   return `${entity.kind}:${entity.id}`;
+}
+
+function normalizeText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase();
+}
+
+function initials(value: string) {
+  const tokens = value.trim().split(/\s+/).filter(Boolean);
+  if (!tokens.length) return "VS";
+  return tokens
+    .slice(-2)
+    .map((token) => token[0]?.toUpperCase())
+    .join("");
 }
 
 function specificOpenEvent(entity: SocialMapEntity) {
@@ -100,10 +139,21 @@ function specificOpenEvent(entity: SocialMapEntity) {
   }
 }
 
-export function UnifiedSocialExplore() {
+export function UnifiedSocialExplore({
+  initialFilter = "all",
+}: UnifiedSocialExploreProps = {}) {
   const [city, setCity] = useState<CityConfig>(HCMC_CITY);
   const [bounds, setBounds] = useState<Bounds>(DEFAULT_BOUNDS);
-  const [filter, setFilter] = useState<SocialMapFilter>("all");
+  const [filter, setFilter] = useState<SocialMapFilter>(() => {
+    if (typeof window === "undefined") return initialFilter;
+    const requestedLayer = new URLSearchParams(window.location.search).get(
+      "layer",
+    ) as SocialMapFilter | null;
+    return requestedLayer && SOCIAL_MAP_FILTERS.includes(requestedLayer)
+      ? requestedLayer
+      : initialFilter;
+  });
+  const [query, setQuery] = useState("");
   const [data, setData] = useState<UnifiedSocialMapResponse>({
     mode: "demo",
     posts: [],
@@ -128,7 +178,8 @@ export function UnifiedSocialExplore() {
   }, []);
 
   useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get("post");
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("post");
     if (!id) return;
     let active = true;
     void api<{ post: LocalPost }>(`/api/posts/${id}`)
@@ -151,14 +202,13 @@ export function UnifiedSocialExplore() {
         setLoading(true);
         const result = await api<UnifiedSocialMapResponse>(
           `/api/map?${params}`,
-          {
-            signal,
-          },
+          { signal },
         );
         if (current !== requestVersion.current) return;
         const parsed = unifiedSocialMapResponseSchema.safeParse(result);
-        if (!parsed.success)
-          throw new Error("Dữ liệu bản đồ xã hội chưa đúng định dạng.");
+        if (!parsed.success) {
+          throw new Error("Dữ liệu quanh khu vực này chưa đúng định dạng.");
+        }
         setData(parsed.data);
         setError("");
       } catch (reason) {
@@ -190,13 +240,24 @@ export function UnifiedSocialExplore() {
     trackEvent({ type: "map_viewport_changed", city_id: city.id });
   }, [bounds, city.id]);
 
-  const visibleEntities = useMemo(
-    () =>
-      filter === "all"
-        ? data.entities
-        : data.entities.filter((entity) => entity.kind === filter),
-    [data.entities, filter],
-  );
+  const visibleEntities = useMemo(() => {
+    const search = normalizeText(query.trim());
+    return data.entities
+      .filter((entity) => filter === "all" || entity.kind === filter)
+      .filter(
+        (entity) =>
+          !search ||
+          normalizeText(
+            `${entity.title} ${entity.subtitle} ${entity.area}`,
+          ).includes(search),
+      )
+      .slice()
+      .sort((a, b) => {
+        const aTime = a.freshness ? Date.parse(a.freshness) : 0;
+        const bTime = b.freshness ? Date.parse(b.freshness) : 0;
+        return bTime - aTime;
+      });
+  }, [data.entities, filter, query]);
 
   useEffect(() => {
     for (const entity of visibleEntities.slice(0, 40)) {
@@ -216,7 +277,11 @@ export function UnifiedSocialExplore() {
     setFilter(next);
     setSelected(null);
     trackEvent({ type: "map_filter_changed", city_id: city.id, filter: next });
+
     const url = new URL(window.location.href);
+    if (window.location.pathname === "/activities" && next !== "activity") {
+      url.pathname = "/";
+    }
     if (next === "all") url.searchParams.delete("layer");
     else url.searchParams.set("layer", next);
     window.history.replaceState({}, "", url);
@@ -251,86 +316,275 @@ export function UnifiedSocialExplore() {
       ? data.places.find((place) => place.id === selected.id)
       : undefined;
 
-  return (
-    <main className={styles.shell}>
-      <header className={styles.header}>
-        <div>
-          <div className={styles.brand}>Vietnam Social</div>
-          <div className={styles.tagline}>
-            Bản đồ sống về con người và cộng đồng Việt Nam
+  const renderCard = (entity: SocialMapEntity) => {
+    if (entity.kind === "local_post") {
+      const post = data.posts.find((item) => item.id === entity.id);
+      if (!post) return null;
+      return (
+        <article className={styles.socialCard} key={entityKey(entity)}>
+          <button
+            type="button"
+            className={styles.cardButton}
+            onClick={() => selectEntity(entity)}
+          >
+            <div className={styles.cardBody}>
+              <div className={styles.identityRow}>
+                <span className={styles.avatar} aria-hidden="true">
+                  {initials(post.author.display_name)}
+                </span>
+                <span className={styles.identityText}>
+                  <strong>{post.author.display_name}</strong>
+                  <span>
+                    {localPostAge(post.created_at)} · {post.area}
+                  </span>
+                </span>
+              </div>
+              <span className={styles.kindBadge}>
+                <MessageCircle size={12} /> {LOCAL_POST_TYPES[post.post_type]}
+              </span>
+              <p className={styles.cardText}>{post.body}</p>
+              <div className={styles.cardMeta}>
+                <span className={styles.metaItem}>
+                  <Heart size={13} /> {post.reaction_count}
+                </span>
+                <span className={styles.metaItem}>
+                  <MessageCircle size={13} /> {post.comment_count} trả lời
+                </span>
+                {post.community && (
+                  <span className={styles.metaItem}>
+                    <Users size={13} /> {post.community.name}
+                  </span>
+                )}
+              </div>
+            </div>
+          </button>
+        </article>
+      );
+    }
+
+    if (entity.kind === "community") {
+      const community = data.communities.find((item) => item.id === entity.id);
+      if (!community) return null;
+      return (
+        <article className={styles.socialCard} key={entityKey(entity)}>
+          <button
+            type="button"
+            className={styles.cardButton}
+            onClick={() => selectEntity(entity)}
+          >
+            <div className={styles.cardBody}>
+              <div className={styles.identityRow}>
+                <span className={styles.avatar} aria-hidden="true">
+                  {initials(community.creator.display_name)}
+                </span>
+                <span className={styles.identityText}>
+                  <strong>{community.creator.display_name}</strong>
+                  <span>đang xây cộng đồng · {community.area}</span>
+                </span>
+              </div>
+              <span className={styles.kindBadge}>
+                <Users size={12} /> {COMMUNITY_CATEGORIES[community.category]}
+              </span>
+              <h3 className={styles.cardTitle}>{community.name}</h3>
+              <p className={styles.cardText}>
+                {community.description ||
+                  "Một cộng đồng địa phương đang kết nối những người có cùng mối quan tâm."}
+              </p>
+              <div className={styles.cardMeta}>
+                <span className={styles.metaItem}>
+                  <Users size={13} /> {community.member_count} thành viên
+                </span>
+                <span className={styles.metaItem}>
+                  <MapPin size={13} /> {community.place_name || community.area}
+                </span>
+              </div>
+            </div>
+          </button>
+        </article>
+      );
+    }
+
+    if (entity.kind === "activity") {
+      const activity = data.activities.find((item) => item.id === entity.id);
+      if (!activity) return null;
+      return (
+        <article className={styles.socialCard} key={entityKey(entity)}>
+          <button
+            type="button"
+            className={styles.cardButton}
+            onClick={() => selectEntity(entity)}
+          >
+            <div className={styles.cardBody}>
+              <div className={styles.identityRow}>
+                <span
+                  className={styles.entityAvatar}
+                  data-kind="activity"
+                  aria-hidden="true"
+                >
+                  <Activity size={18} />
+                </span>
+                <span className={styles.identityText}>
+                  <strong>{activity.source_label}</strong>
+                  <span>
+                    {timeLabel(activity.starts_at)} · {activity.area}
+                  </span>
+                </span>
+              </div>
+              <span className={styles.kindBadge}>
+                <Activity size={12} /> {CATEGORIES[activity.category].label}
+              </span>
+              <h3 className={styles.cardTitle}>{activity.title}</h3>
+              {activity.description && (
+                <p className={styles.cardText}>{activity.description}</p>
+              )}
+              <div className={styles.cardMeta}>
+                <span className={styles.metaItem}>
+                  <MapPin size={13} /> {activity.place_name}
+                </span>
+                <span className={styles.metaItem}>
+                  {CONFIDENCE_LABELS[activity.confidence]}
+                </span>
+              </div>
+            </div>
+          </button>
+        </article>
+      );
+    }
+
+    const place = data.places.find((item) => item.id === entity.id);
+    if (!place) return null;
+    return (
+      <article className={styles.socialCard} key={entityKey(entity)}>
+        <button
+          type="button"
+          className={styles.cardButton}
+          onClick={() => selectEntity(entity)}
+        >
+          <div className={styles.cardBody}>
+            <div className={styles.identityRow}>
+              <span
+                className={styles.entityAvatar}
+                data-kind="place"
+                aria-hidden="true"
+              >
+                <MapPin size={18} />
+              </span>
+              <span className={styles.identityText}>
+                <strong>{place.name}</strong>
+                <span>{place.area}</span>
+              </span>
+            </div>
+            <h3 className={styles.cardTitle}>{place.name}</h3>
+            <p className={styles.cardText}>
+              Mở địa điểm để xem bài viết, cộng đồng và hoạt động gắn với nơi
+              này.
+            </p>
           </div>
-        </div>
-        <nav className={styles.nav} aria-label="Điều hướng chính">
-          <Link href="/" className={`${styles.navLink} ${styles.navActive}`}>
-            Xã hội
+        </button>
+      </article>
+    );
+  };
+
+  return (
+    <div className={styles.app}>
+      <header className={styles.appHeader}>
+        <Link href="/" className={styles.brandLink}>
+          <span className={styles.brandMark}>V</span>
+          <span className={styles.brandText}>
+            <strong>Vietnam Social</strong>
+            <span>Bản đồ sống của cộng đồng Việt Nam</span>
+          </span>
+        </Link>
+
+        <label className={styles.searchBox}>
+          <Search size={17} aria-hidden="true" />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Tìm bài viết, cộng đồng, hoạt động, khu vực..."
+            aria-label="Tìm trong vùng bản đồ"
+          />
+        </label>
+
+        <nav className={styles.topNav} aria-label="Điều hướng chính">
+          <Link href="/" className={styles.navLink}>
+            Khám phá
           </Link>
-          <Link href="/activities" className={styles.navLink}>
-            <Activity size={16} /> Hoạt động
+          <Link href="/activities/manage" className={styles.navLink}>
+            <Activity size={15} /> Tổ chức hoạt động
           </Link>
-          <Link href="/following" className={styles.navLink}>
+          <Link href="/following" className={styles.secondaryAction}>
             Đang theo dõi
           </Link>
-          <Link href="/contribute" className={styles.ghostButton}>
-            <Plus size={16} /> Đóng góp
+          <Link href="/contribute" className={styles.primaryAction}>
+            <Plus size={16} /> <span>Chia sẻ</span>
           </Link>
         </nav>
       </header>
 
-      <section className={styles.hero}>
-        <div>
-          <span className={styles.eyebrow}>
-            <Sparkles size={15} /> UNIFIED SOCIAL MAP
-          </span>
-          <h1>Ở đây đang có chuyện gì?</h1>
-          <p>
-            Một bản đồ cho bài đăng địa phương, cộng đồng, hoạt động và những
-            nơi đang có đời sống xã hội quanh TP. Hồ Chí Minh.
-          </p>
-        </div>
-        <div className={styles.legend}>
-          <span>
-            <b>•</b> Bài
-          </span>
-          <span>
-            <b>C</b> Cộng đồng
-          </span>
-          <span>
-            <b>A</b> Hoạt động
-          </span>
-          <span>
-            <b>P</b> Địa điểm
-          </span>
-        </div>
-      </section>
-
       {data.mode === "demo" && (
         <div className={styles.demoBanner}>
-          Bản demo không bịa hoạt động xã hội để lấp bản đồ.
+          Bản xem trước không tạo người, bài viết hay hoạt động giả để lấp bản
+          đồ.
         </div>
       )}
       {error && <div className={styles.errorBanner}>{error}</div>}
 
-      <div
-        className={styles.scopeSwitch}
-        role="group"
-        aria-label="Lọc lớp xã hội"
-      >
-        {SOCIAL_MAP_FILTERS.map((item) => (
-          <button
-            key={item}
-            type="button"
-            aria-pressed={filter === item}
-            className={filter === item ? styles.scopeActive : ""}
-            onClick={() => selectFilter(item)}
-          >
-            {FILTER_LABELS[item]}
-            {item !== "all" && ` (${data.counts[item]})`}
-          </button>
-        ))}
-      </div>
+      <main className={styles.shell}>
+        <aside className={styles.leftRail} aria-label="Khám phá theo loại">
+          <section className={styles.railIntro}>
+            <span className={styles.railEyebrow}>
+              <MapPin size={13} /> {city.name}
+            </span>
+            <h1>Khám phá quanh đây</h1>
+            <p>
+              Câu chuyện, cộng đồng và những cuộc gặp đang tạo nên đời sống của
+              từng khu vực.
+            </p>
+          </section>
 
-      <section className={styles.workspace}>
-        <div className={styles.mapColumn}>
+          <nav className={styles.layerNav} aria-label="Nội dung quanh đây">
+            {SOCIAL_MAP_FILTERS.map((item) => {
+              const Icon = FILTER_ICONS[item];
+              const count =
+                item === "all" ? data.entities.length : data.counts[item];
+              return (
+                <button
+                  key={item}
+                  type="button"
+                  aria-pressed={filter === item}
+                  className={`${styles.layerButton} ${filter === item ? styles.layerButtonActive : ""}`}
+                  onClick={() => selectFilter(item)}
+                >
+                  <span className={styles.layerIcon}>
+                    <Icon size={16} />
+                  </span>
+                  <span>{FILTER_LABELS[item]}</span>
+                  <span className={styles.layerCount}>{count}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <section className={styles.railCard}>
+            <strong>Đây là mạng xã hội địa phương.</strong>
+            <p>
+              Chia sẻ một câu hỏi, câu chuyện hoặc hoạt động thật để người quanh
+              khu vực có thể tìm thấy và tham gia.
+            </p>
+            <Link href="/contribute" className={styles.primaryAction}>
+              <Plus size={15} /> <span>Chia sẻ với khu vực này</span>
+            </Link>
+          </section>
+
+          <p className={styles.privacyNote}>
+            <ShieldCheck size={14} />
+            Vietnam Social không hiển thị vị trí trực tiếp của người dùng trên
+            bản đồ công khai.
+          </p>
+        </aside>
+
+        <section className={styles.mapStage} aria-label="Bản đồ xã hội">
           <UnifiedSocialMap
             entities={visibleEntities}
             selectedKey={selected ? entityKey(selected) : undefined}
@@ -339,141 +593,137 @@ export function UnifiedSocialExplore() {
             city={city}
             initialBounds={bounds}
           />
-        </div>
+        </section>
 
-        <aside
-          className={styles.feed}
-          aria-label="Đời sống xã hội trong vùng bản đồ"
-        >
-          <div className={styles.feedHeader}>
-            <div>
-              <strong>Đời sống quanh đây</strong>
+        <aside className={styles.streamPanel} aria-label="Đời sống quanh đây">
+          <header className={styles.streamHeader}>
+            <span className={styles.streamHeaderText}>
+              <strong>
+                {query ? `Kết quả cho “${query}”` : FILTER_LABELS[filter]}
+              </strong>
               <span>
-                {data.counts.local_post} bài · {data.counts.community} cộng đồng
-                · {data.counts.activity} hoạt động · {data.counts.place} địa
-                điểm
+                {visibleEntities.length
+                  ? `${visibleEntities.length} nội dung trong vùng bản đồ`
+                  : "Di chuyển bản đồ để khám phá khu vực khác"}
               </span>
-            </div>
-            {loading && <LoaderCircle className={styles.spin} size={18} />}
-          </div>
+            </span>
+            {loading && (
+              <LoaderCircle className={styles.loadingIcon} size={18} />
+            )}
+          </header>
 
-          {selected && (
-            <section
-              className={styles.postCard}
-              aria-label="Đối tượng đang chọn"
-            >
-              <div className={styles.postMeta}>
-                <span className={styles.typeChip}>
-                  {FILTER_LABELS[selected.kind]}
-                </span>
+          <div className={styles.stream}>
+            {selected && (
+              <section
+                className={styles.selectedCard}
+                aria-label="Nội dung đang chọn"
+              >
                 <button
                   type="button"
+                  className={styles.closeButton}
                   onClick={() => setSelected(null)}
-                  aria-label="Bỏ chọn"
+                  aria-label="Đóng nội dung đang chọn"
                 >
                   <X size={15} />
                 </button>
-              </div>
-              <strong>{selected.title}</strong>
-              <p>{selected.subtitle}</p>
-              <div className={styles.postFooter}>
-                <span>
-                  <MapPin size={14} /> {selected.area}
+                <span className={styles.kindBadge}>
+                  {FILTER_LABELS[selected.kind]}
                 </span>
-              </div>
+                <h2>{selected.title}</h2>
+                <div className={styles.cardMeta}>
+                  <span className={styles.metaItem}>
+                    <MapPin size={13} /> {selected.area}
+                  </span>
+                </div>
 
-              {selectedPost && (
-                <>
-                  <p>{selectedPost.body}</p>
-                  <Link
-                    className={styles.navLink}
-                    href={`/u/${selectedPost.author.id}`}
-                  >
-                    {selectedPost.author.display_name}
-                  </Link>
-                  <Link
-                    className={styles.primaryButton}
-                    href={`/contribute?post=${selectedPost.id}`}
-                  >
-                    <MessageCircle size={16} /> Mở thảo luận
-                  </Link>
-                </>
-              )}
-              {selectedCommunity && (
-                <>
-                  <p>
-                    {selectedCommunity.description || "Cộng đồng địa phương"}
-                  </p>
-                  <Link
-                    className={styles.primaryButton}
-                    href={`/c/${selectedCommunity.id}`}
-                  >
-                    <Users size={16} /> Vào cộng đồng
-                  </Link>
-                </>
-              )}
-              {selectedActivity && (
-                <>
-                  <p>{selectedActivity.description}</p>
-                  <Link
-                    className={styles.primaryButton}
-                    href={`/s/${selectedActivity.id}`}
-                  >
-                    <Activity size={16} /> Xem & tham gia
-                  </Link>
-                </>
-              )}
-              {selectedPlace && (
-                <Link
-                  className={styles.primaryButton}
-                  href={`/p/${selectedPlace.id}`}
-                >
-                  <MapPin size={16} /> Mở Social Place
+                {selectedPost && (
+                  <>
+                    <p>{selectedPost.body}</p>
+                    <div className={styles.detailActions}>
+                      <Link
+                        className={styles.secondaryAction}
+                        href={`/u/${selectedPost.author.id}`}
+                      >
+                        {selectedPost.author.display_name}
+                      </Link>
+                      <Link
+                        className={styles.primaryAction}
+                        href={`/contribute?post=${selectedPost.id}`}
+                      >
+                        <MessageCircle size={15} /> Thảo luận
+                      </Link>
+                    </div>
+                  </>
+                )}
+
+                {selectedCommunity && (
+                  <>
+                    <p>
+                      {selectedCommunity.description ||
+                        "Cộng đồng địa phương đang kết nối những người có cùng mối quan tâm."}
+                    </p>
+                    <div className={styles.detailActions}>
+                      <Link
+                        className={styles.primaryAction}
+                        href={`/c/${selectedCommunity.id}`}
+                      >
+                        <Users size={15} /> Vào cộng đồng
+                      </Link>
+                    </div>
+                  </>
+                )}
+
+                {selectedActivity && (
+                  <>
+                    <p>{selectedActivity.description}</p>
+                    <div className={styles.detailActions}>
+                      <Link
+                        className={styles.primaryAction}
+                        href={`/s/${selectedActivity.id}`}
+                      >
+                        <Activity size={15} /> Xem & tham gia
+                      </Link>
+                    </div>
+                  </>
+                )}
+
+                {selectedPlace && (
+                  <>
+                    <p>
+                      Xem những câu chuyện, cộng đồng và hoạt động gắn với địa
+                      điểm này.
+                    </p>
+                    <div className={styles.detailActions}>
+                      <Link
+                        className={styles.primaryAction}
+                        href={`/p/${selectedPlace.id}`}
+                      >
+                        <MapPin size={15} /> Mở địa điểm
+                      </Link>
+                    </div>
+                  </>
+                )}
+              </section>
+            )}
+
+            {!loading && visibleEntities.length === 0 ? (
+              <div className={styles.emptyState}>
+                <Compass size={28} />
+                <strong>Chưa có câu chuyện nào ở vùng này.</strong>
+                <p>
+                  Một mạng xã hội địa phương chỉ có ý nghĩa khi nội dung đến từ
+                  người thật. Hãy là người mở đầu cho khu vực này.
+                </p>
+                <Link className={styles.primaryAction} href="/contribute">
+                  <Plus size={15} /> Chia sẻ đầu tiên
                 </Link>
-              )}
-            </section>
-          )}
-
-          {!loading && visibleEntities.length === 0 ? (
-            <div className={styles.emptyState}>
-              <Compass size={30} />
-              <strong>
-                Chưa có dữ liệu thật cho lớp này trong vùng bản đồ.
-              </strong>
-              <p>
-                Vietnam Social giữ trạng thái trống trung thực thay vì tạo hoạt
-                động giả.
-              </p>
-              <Link className={styles.primaryButton} href="/contribute">
-                Đóng góp đầu tiên
-              </Link>
-            </div>
-          ) : (
-            visibleEntities.map((entity) => (
-              <button
-                type="button"
-                key={entityKey(entity)}
-                className={styles.postCard}
-                onClick={() => selectEntity(entity)}
-              >
-                <div className={styles.postMeta}>
-                  <span className={styles.typeChip}>
-                    {FILTER_LABELS[entity.kind]}
-                  </span>
-                  <span>{entity.trust_state || entity.area}</span>
-                </div>
-                <strong>{entity.title}</strong>
-                <p>{entity.subtitle}</p>
-                <div className={styles.postFooter}>
-                  <span>
-                    <MapPin size={14} /> {entity.area}
-                  </span>
-                </div>
-              </button>
-            ))
-          )}
+              </div>
+            ) : (
+              visibleEntities.map(renderCard)
+            )}
+          </div>
         </aside>
-      </section>
+      </main>
 
       <Dialog.Root
         open={Boolean(deepLinkedPost)}
@@ -487,39 +737,41 @@ export function UnifiedSocialExplore() {
       >
         <Dialog.Portal>
           <Dialog.Overlay className={styles.overlay} />
-          <Dialog.Content className={`${styles.modal} ${styles.detailModal}`}>
-            <Dialog.Close className={styles.close} aria-label="Đóng">
-              <X />
+          <Dialog.Content className={styles.modal}>
+            <Dialog.Close className={styles.closeButton} aria-label="Đóng">
+              <X size={16} />
             </Dialog.Close>
             {deepLinkedPost && (
               <>
                 <Dialog.Title className={styles.modalTitle}>
                   {LOCAL_POST_TYPES[deepLinkedPost.post_type]}
                 </Dialog.Title>
-                <Dialog.Description className={styles.postMeta}>
-                  {deepLinkedPost.author.display_name} · {deepLinkedPost.area}
+                <Dialog.Description className={styles.modalMeta}>
+                  {deepLinkedPost.author.display_name} · {deepLinkedPost.area} ·{" "}
+                  {localPostAge(deepLinkedPost.created_at)}
                 </Dialog.Description>
-                <p>{deepLinkedPost.body}</p>
-                {deepLinkedPost.place_id && (
+                <p className={styles.modalBody}>{deepLinkedPost.body}</p>
+                <div className={styles.detailActions}>
+                  {deepLinkedPost.place_id && (
+                    <Link
+                      className={styles.secondaryAction}
+                      href={`/p/${deepLinkedPost.place_id}`}
+                    >
+                      <MapPin size={15} /> {deepLinkedPost.place_name}
+                    </Link>
+                  )}
                   <Link
-                    className={styles.navLink}
-                    href={`/p/${deepLinkedPost.place_id}`}
+                    className={styles.primaryAction}
+                    href={`/contribute?post=${deepLinkedPost.id}`}
                   >
-                    <MapPin size={15} /> Xem địa điểm{" "}
-                    {deepLinkedPost.place_name}
+                    <MessageCircle size={15} /> Mở thảo luận
                   </Link>
-                )}
-                <Link
-                  className={styles.primaryButton}
-                  href={`/contribute?post=${deepLinkedPost.id}`}
-                >
-                  <MessageCircle size={16} /> Mở thảo luận
-                </Link>
+                </div>
               </>
             )}
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
-    </main>
+    </div>
   );
 }

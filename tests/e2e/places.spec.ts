@@ -12,7 +12,7 @@ test("anonymous Following explains sign-in and preserves return navigation", asy
   ).toBeVisible();
   await page.getByRole("link", { name: "Bản đồ xã hội" }).click();
   await expect(
-    page.getByRole("heading", { name: "Ở đây đang có chuyện gì?" }),
+    page.getByRole("heading", { name: "Khám phá quanh đây" }),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Đang theo dõi", exact: true }),
