@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { HCMC_CITY, type Bounds, type CityConfig } from "@/lib/domain";
 import { LOCAL_POST_TYPES, type LocalPost } from "@/lib/social";
-import { COMMUNITY_CATEGORIES, type Community } from "@/lib/community";
+import { type Community } from "@/lib/community";
 import { trackEvent } from "@/lib/analytics";
 import {
   SOCIAL_MAP_FILTERS,
@@ -494,7 +494,7 @@ export function UnifiedSocialExplore() {
             {deepLinkedPost && (
               <>
                 <Dialog.Title className={styles.modalTitle}>
-                  {LOCAL_POST_TYPES[deepLinkedPost.post_type].label}
+                  {LOCAL_POST_TYPES[deepLinkedPost.post_type]}
                 </Dialog.Title>
                 <Dialog.Description className={styles.postMeta}>
                   {deepLinkedPost.author.display_name} · {deepLinkedPost.area}
