@@ -28,7 +28,8 @@ test("two independent authenticated sessions: publish, join, confirm, broadcast 
     throw new Error("Local Supabase only");
   const admin = createClient(url, key, { auth: { persistSession: false } });
   const run = randomUUID().slice(0, 8),
-    password = `Local-only-${randomUUID()}`;
+    password = `Local-only-${randomUUID()}`,
+    placeId = randomUUID();
   const hostEmail = `host-${run}@test.local`,
     memberEmail = `member-${run}@test.local`;
   const host = await admin.auth.admin.createUser({
@@ -44,9 +45,11 @@ test("two independent authenticated sessions: publish, join, confirm, broadcast 
   if (host.error || member.error || !host.data.user || !member.data.user)
     throw new Error("Local test identity creation failed");
   const hostId = host.data.user.id;
-  if (!/^[a-f0-9-]{36}$/.test(hostId)) throw new Error("Unexpected user ID");
+  const memberId = member.data.user.id;
+  if (!/^[a-f0-9-]{36}$/.test(hostId) || !/^[a-f0-9-]{36}$/.test(memberId))
+    throw new Error("Unexpected user ID");
   localSql(
-    `update app_private.profiles set role='host',display_name='Host local E2E' where id='${hostId}'; insert into app_private.host_venue_memberships(host_id,place_id,granted_by) values('${hostId}','10000000-0000-4000-8000-000000000001','${hostId}') on conflict do nothing;`,
+    `insert into public.places(id,city_id,name,area,longitude,latitude,h3_parent,enabled,data_origin) values('${placeId}','hcm','E2E public place ${run}','E2E Area ${run}',106.68,10.82,'8665b5647ffffff',true,'real'); update app_private.profiles set role='host',display_name='Host local E2E' where id='${hostId}'; insert into app_private.analytics_test_actors(actor_id,reason) values('${hostId}','live E2E host'),('${memberId}','live E2E member') on conflict (actor_id) do nothing; insert into app_private.host_venue_memberships(host_id,place_id,granted_by) values('${hostId}','${placeId}','${hostId}') on conflict do nothing;`,
   );
   const hostContext = await browser.newContext(),
     memberContext = await browser.newContext();
@@ -78,7 +81,7 @@ test("two independent authenticated sessions: publish, join, confirm, broadcast 
     await h.getByLabel("Tên hoạt động", { exact: true }).fill(title);
     await h
       .getByLabel("Địa điểm công cộng", { exact: true })
-      .selectOption("10000000-0000-4000-8000-000000000001");
+      .selectOption(placeId);
     const vietnamInput = (time: number) =>
       new Date(time + 7 * 3_600_000).toISOString().slice(0, 16);
     await h
@@ -134,7 +137,6 @@ test("two independent authenticated sessions: publish, join, confirm, broadcast 
       ).trim(),
     ).toBe("1");
     // Phase D: use the same isolated identities and real public venue as the Activity flow.
-    const placeId = "10000000-0000-4000-8000-000000000001";
     const headers = { Authorization: `Bearer ${access}` };
     const createdCommunity = await m.request.post("/api/communities", {
       headers,

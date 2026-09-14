@@ -1,88 +1,135 @@
 # Competitive Brief
 
+Status: benchmark brief for the map-native social-network direction. Competitor existence validates user behaviors and raises the quality bar; it is not a stop condition for Vietnam Social.
+
 ## Market conclusion
 
-The opportunity is not “another social map.” Strong products already own friend location, family safety, navigation reports, place databases, and event invitations. The viable gap is a narrow layer combining **recency + place/activity context + community verification + an immediate real-world action**.
+Vietnam Social is not entering an empty market. Users already discover local life through Facebook/Zalo groups, Google Maps, Meetup, sports-community products, event guides, and newer hyperlocal apps. The product therefore cannot rely on “map-first” alone as differentiation.
 
-## Category map
+The working product thesis is broader:
 
-| Category              | Products                            | Proven behavior                                                      | Implication for Vietnam Social                          |
-| --------------------- | ----------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------- |
-| Social location       | Snap Map, Zenly/Bump, Jagat         | People revisit maps for social context                               | Do not compete on precise friend tracking               |
-| Family safety         | Life360                             | A clear high-stakes job supports subscription                        | Vietnam Social needs a clear job, not a generic network |
-| Crowdsourced realtime | Waze, Citizen                       | Report → verify → expire creates live utility                        | Make activity Signals ephemeral and confidence-aware    |
-| Place discovery       | Google Maps, Foursquare/Swarm, Amap | Places anchor local behavior                                         | Use places as anchors; do not rebuild the place corpus  |
-| Event coordination    | Partiful                            | Hosts bring both inventory and users                                 | Acquire hosts before broad consumer traffic             |
-| Nearby social         | Momo, Lalatok, FindNear             | There is demand, but products drift into dating/spam or feature soup | Map activities and places, not strangers                |
+> **Combine public place context, local posts, persistent communities, time-sensitive activities, and durable local relationships in one coherent geographic social layer.**
+
+The goal is to outperform fragmented alternatives on local context, freshness, trust, actionability, and continuity from online discovery to real-world participation.
+
+## Current benchmark map
+
+| Category             | Products                              | What they demonstrate                                                                    | Implication for Vietnam Social                                                  |
+| -------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Place discovery      | Google Maps, Foursquare/Swarm         | Places are durable anchors for local behavior                                            | Use Places as social anchors; do not rebuild a global POI corpus                |
+| Hyperlocal social    | Neme, Nextdoor                        | Geography can organize posts, local identity, and neighborhood discussion                | Local relevance must be stronger than a generic follower feed                   |
+| City/event discovery | CheckEvent, inSAIGON, Discover Saigon | Users want a simpler answer to “what can I do here?”                                     | Discovery must remain legible, fresh, and actionable                            |
+| Community + IRL      | Meetup, Homii                         | Persistent groups can turn discovery into repeated participation                         | Community identity and recurring participation matter more than one-off content |
+| Sports communities   | Reclub                                | Vertical products can achieve strong density with specialized community/activity tooling | Vietnam Social must be general-purpose without becoming shallow feature soup    |
+| Event conversion     | Partiful                              | Creation, sharing, RSVP, and distribution can form a strong conversion loop              | Every discovered object needs a clear next action                               |
+| Realtime utility     | Waze                                  | Freshness, confidence, and community verification can make a map habit-forming           | Trust/freshness must be understandable and server-owned                         |
+| Social-map UX        | Snap Map, Zenly-like products         | A map can feel alive without resembling a conventional feed                              | Invest in map legibility/personality without public live-person tracking        |
+
+## Vietnamese-market benchmarks
+
+### Neme
+
+Benchmark for hyperlocal posting, local communities, businesses, and nearby social context. Its existence means “social network by location” is not a sufficient moat by itself.
+
+### CheckEvent
+
+Benchmark for practical city/event discovery and the immediate “today / nearby / find something to do” job.
+
+### inSAIGON and Discover Saigon
+
+Benchmarks for curated HCMC discovery. They demonstrate the cold-start advantage of useful editorial/curated inventory over an empty user-generated map.
+
+### Homii
+
+Benchmark for trusted communities and real-world experiences rather than passive feed consumption.
+
+### Reclub
+
+Benchmark for the depth possible when Community + Activity tooling is optimized for one vertical. Vietnam Social should learn from its participation loop without narrowing the product permanently to sports.
 
 ## What to borrow
 
-- Waze: confirmation loop, reliability, automatic disappearance
-- Citizen: mixed supply from structured sources and users, with source labels
-- Zenly/Bump: a lively, legible map with emotional personality
-- Partiful: host-created inventory and shareable invitation links
-- Amap: long-term ranking from real behavior, not ratings alone
-- Google Maps: stable place anchoring and user expectations for navigation
+- Google Maps: stable physical anchors and familiar map expectations
+- Waze: freshness, confidence, confirmation, and understandable trust loops
+- Neme/Nextdoor: hyperlocal relevance and persistent local identity
+- Reclub/Meetup: Community → Activity → repeated participation
+- Partiful: low-friction action and sharing/distribution
+- curated city guides: useful inventory before network density exists
+- Snap Map/Zenly-like products: lively but legible map interaction
+
+Borrow behaviors and product principles, not visual cloning or proprietary implementation details.
 
 ## What not to borrow
 
-- Continuous precise tracking
-- A generic social feed
-- Public nearby-person markers
-- Reviews as the primary object
-- Ads before recurring user value
-- Chat, marketplace, livestream, and profiles bundled into the MVP
+- continuous precise-person tracking
+- public nearby-stranger markers
+- a conventional infinite global feed as the homepage
+- ratings/reviews as the primary product object
+- feature bundles with no coherent geographic loop
+- chat, payments, marketplace, livestream, and short video merely because competitors have them
+- fake inventory or fake engagement to make the map look populated
 
-## Product position
+## Updated product position
 
-| Product        | Primary question                                        |
-| -------------- | ------------------------------------------------------- |
-| Google Maps    | What is here?                                           |
-| Waze           | What is happening on the road?                          |
-| Snap/Bump      | Where are my friends?                                   |
-| Partiful       | What events am I invited to?                            |
-| Vietnam Social | What can I join or go to near me in the next few hours? |
+| Product           | Primary question                                                                              |
+| ----------------- | --------------------------------------------------------------------------------------------- |
+| Google Maps       | What places are here?                                                                         |
+| Waze              | What is happening on the road right now?                                                      |
+| Meetup / Reclub   | Which groups or activities can I participate in?                                              |
+| Neme / Nextdoor   | What are people in this locality discussing?                                                  |
+| Event/city guides | What should I do in this city today?                                                          |
+| Vietnam Social    | **What social life exists in this place, and how can I connect, participate, or contribute?** |
 
-## Initial wedge
+That answer is composed from the five product primitives:
 
-The broad thesis “what is happening around me?” is still too wide for a cold-start MVP. The first wedge is:
+`People + Local Posts + Communities + Activities + Places`
 
-> **Last-minute local activities with a clear action: join, go, or confirm.**
+through one map-native discovery surface.
 
-Examples:
+## Differentiation hypothesis
 
-- a badminton group needs two players at 19:30
-- a free acoustic set begins in 20 minutes
-- a running group departs in one hour
-- a workshop has five remaining walk-in seats
+Vietnam Social should become better than fragmented alternatives by connecting objects that are usually split across products:
 
-This wedge is selected because inventory has a natural owner, urgency is real, sharing brings new users, and intent can be measured without building a full social graph.
+`Place → Posts → Community → Activity → Person → persistent follow/return`
 
-## Initial geography
+The defensibility hypothesis is not map rendering. It may emerge from:
 
-Pilot one connected cluster: Go Vap, Phu Nhuan, and Tan Binh. This is a hypothesis, chosen for founder access and operational density; validate venue and host supply before locking it.
+- dense local social context attached to real geography
+- persistent Community and Place relationships
+- trustworthy/fresh real-world participation data
+- contribution and organizer history
+- cross-primitive local discovery
+- distribution relationships with real Vietnamese communities and organizers
 
-Do not launch with a visually empty “all HCMC” map.
+This remains a hypothesis, not an established moat.
 
-## Defensibility hypothesis
+## Product-development implication
 
-The moat is not map rendering or place data. It may emerge from:
+Competitor research is a benchmark input, not a reason to halt implementation.
 
-- verified, expiring local activity inventory
-- reporter and host trust history
-- confirmation behavior
-- venue activity patterns
-- distribution relationships with local hosts and communities
+Each phase should improve at least one of:
 
-This is a hypothesis, not an established moat.
+1. discovery — understand the social context of a viewport quickly
+2. connection — form a durable relationship with a person/community/place/area
+3. participation — move from map discovery to a real-world action
+4. contribution — add trustworthy local context back to the map
 
-## Evidence sources
+Avoid adding a feature merely to match a competitor if it does not strengthen this loop.
 
-- [Snap location-sharing research](https://newsroom.snap.com/location-sharing-redefining-friends-connect)
-- [Zenly product history](https://techcrunch.com/2022/04/22/how-zenly-made-social-maps-cool-again-and-whats-next/)
-- [Waze report behavior](https://support.google.com/waze/answer/6071177?hl=en)
-- [Waze alert reliability](https://support.google.com/waze/partners/answer/10618035?hl=en)
-- [Citizen operating model](https://support.citizen.com/hc/en-us/articles/115000278894-How-does-Citizen-work)
-- [Foursquare Swarm check-ins](https://support.foursquare.com/hc/en-us/articles/21181809706012-Swarm-check-ins)
+## Evidence and source notes
+
+Competitor traction numbers published by the competitors themselves must be labeled as self-reported rather than audited usage.
+
+Useful public references include:
+
+- [DataReportal — Digital 2026: Vietnam](https://datareportal.com/reports/digital-2026-vietnam)
+- [Neme on Google Play](https://play.google.com/store/apps/details?id=com.neme.app)
+- [CheckEvent](https://checkevent.vn/)
+- [Reclub HCMC communities](https://reclub.co/vi/communities/ho-chi-minh-city-metropolitan-vietnam-1)
+- [Meetup — Ho Chi Minh City](https://www.meetup.com/find/vn--ho-chi-minh-city/)
 - [Partiful Explore](https://help.partiful.com/en-us/articles/15525568-what-is-the-partiful-explore-page)
-- [Vietnam Personal Data Protection Law record](https://vbpl.moj.gov.vn/bocongan/Pages/vbpq-thuoctinh.aspx?ItemID=179252&Keyword=)
+- [Waze report behavior](https://support.google.com/waze/answer/6071177?hl=en)
+- [Google Maps contributions help](https://support.google.com/maps/answer/6225846?hl=vi)
+- [Vietnam Personal Data Protection Law record](https://vbpl.vn/TW/Pages/vbpq-toanvan.aspx?ItemID=187276)
+
+Market research does not replace real Vietnam Social retention and participation evidence. Technical shipping and competitor comparison are not product-market fit.

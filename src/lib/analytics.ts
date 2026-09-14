@@ -1,124 +1,195 @@
 import { z } from "zod";
 
 /**
- * Task 002: Analytics Foundation.
- *
- * Epistemic & Privacy Invariant:
- * - NEVER send raw GPS coordinates (latitude, longitude, exact device location) to analytics.
- * - Coarse spatial context (city_id, coarse H3 resolution 6 parent, or public area label) is allowed.
- * - All product events are strictly typed.
- * - Adapter architecture is pluggable and replaceable.
+ * Analytics is observational. Durable product facts are recorded by database mutations.
+ * Privacy invariant: client telemetry never contains raw GPS coordinates.
+ * Evidence classification (real/test/demo) is server-owned and therefore absent here.
  */
-
-// Schema forbidding any coordinates
-const rawCoordinateKeys = [
-  "latitude",
-  "longitude",
-  "lat",
-  "lng",
-  "coords",
-  "location",
-] as const;
-
-const baseEventFields = {
-  session_id: z.string().optional(),
-  is_qualified: z.boolean().optional(),
-  is_demo: z.boolean().optional(),
-  is_test: z.boolean().optional(),
-  timestamp: z.number().default(() => Date.now()),
+const subjectFields = {
+  subject_type: z
+    .enum(["local_post", "person", "community", "activity", "place", "area"])
+    .optional(),
+  subject_id: z.string().min(1).max(200).optional(),
 };
 
+const baseEventFields = {
+  session_id: z.string().max(64).optional(),
+  is_qualified: z.boolean().optional(),
+  timestamp: z.number().default(() => Date.now()),
+  ...subjectFields,
+};
+
+const strict = <T extends z.ZodRawShape>(shape: T) => z.object(shape).strict();
+
 export const analyticsEventSchema = z.discriminatedUnion("type", [
-  z.object({
+  strict({
     type: z.literal("map_opened"),
     city_id: z.string(),
+    ...baseEventFields,
     zoom: z.number().optional(),
+  }),
+  strict({
+    type: z.literal("map_viewport_changed"),
+    city_id: z.string(),
     ...baseEventFields,
   }),
-  z.object({
+  strict({
+    type: z.literal("map_filter_changed"),
+    city_id: z.string(),
+    ...baseEventFields,
+    filter: z.enum(["all", "local_post", "community", "activity", "place"]),
+  }),
+  strict({
+    type: z.literal("map_entity_impression"),
+    city_id: z.string(),
+    ...baseEventFields,
+    subject_type: z.enum(["local_post", "community", "activity", "place"]),
+    subject_id: z.string().min(1).max(200),
+  }),
+  strict({
+    type: z.literal("map_entity_opened"),
+    city_id: z.string(),
+    ...baseEventFields,
+    subject_type: z.enum(["local_post", "community", "activity", "place"]),
+    subject_id: z.string().min(1).max(200),
+  }),
+  strict({
     type: z.literal("area_selected"),
     city_id: z.string(),
+    ...baseEventFields,
     area_name: z.string().optional(),
     coarse_h3: z.string().optional(),
-    ...baseEventFields,
   }),
-  z.object({
+  strict({
     type: z.literal("signal_impression"),
     signal_id: z.string(),
     city_id: z.string(),
-    category: z.string(),
     ...baseEventFields,
+    category: z.string(),
   }),
-  z.object({
+  strict({
     type: z.literal("signal_opened"),
     signal_id: z.string(),
     city_id: z.string(),
+    ...baseEventFields,
     category: z.string(),
     duration_ms: z.number().optional(),
-    ...baseEventFields,
   }),
-  z.object({
+  strict({
     type: z.literal("join_clicked"),
     signal_id: z.string(),
     city_id: z.string(),
     ...baseEventFields,
   }),
-  z.object({
+  strict({
     type: z.literal("go_clicked"),
     signal_id: z.string(),
     city_id: z.string(),
     ...baseEventFields,
   }),
-  z.object({
+  strict({
     type: z.literal("share_clicked"),
     signal_id: z.string(),
     city_id: z.string(),
     ...baseEventFields,
   }),
-  z.object({
+  strict({
     type: z.literal("confirmation_submitted"),
     signal_id: z.string(),
     city_id: z.string(),
     ...baseEventFields,
   }),
-  z.object({
+  strict({
     type: z.literal("not_there_submitted"),
     signal_id: z.string(),
     city_id: z.string(),
     ...baseEventFields,
   }),
-  z.object({
+  strict({
+    type: z.literal("report_submitted"),
+    signal_id: z.string(),
+    city_id: z.string(),
+    ...baseEventFields,
+    reason_code: z.string().optional(),
+  }),
+  strict({
+    type: z.literal("local_post_opened"),
+    city_id: z.string(),
+    ...baseEventFields,
+    subject_type: z.literal("local_post"),
+    subject_id: z.string().min(1).max(200),
+  }),
+  strict({
+    type: z.literal("profile_opened"),
+    city_id: z.string(),
+    ...baseEventFields,
+    subject_type: z.literal("person"),
+    subject_id: z.string().min(1).max(200),
+  }),
+  strict({
+    type: z.literal("community_opened"),
+    city_id: z.string(),
+    ...baseEventFields,
+    subject_type: z.literal("community"),
+    subject_id: z.string().min(1).max(200),
+  }),
+  strict({
+    type: z.literal("place_opened"),
+    city_id: z.string(),
+    ...baseEventFields,
+    subject_type: z.literal("place"),
+    subject_id: z.string().min(1).max(200),
+  }),
+  strict({
+    type: z.literal("area_opened"),
+    city_id: z.string(),
+    ...baseEventFields,
+    subject_type: z.literal("area"),
+    subject_id: z.string().min(1).max(200),
+  }),
+  // Server/development-only compatibility events. /api/events rejects these.
+  strict({
     type: z.literal("signal_created"),
     signal_id: z.string(),
     city_id: z.string(),
+    ...baseEventFields,
     category: z.string(),
     from_template: z.boolean().optional(),
-    ...baseEventFields,
   }),
-  z.object({
+  strict({
     type: z.literal("signal_expired"),
     signal_id: z.string(),
     city_id: z.string(),
     ...baseEventFields,
   }),
-  z.object({
-    type: z.literal("report_submitted"),
-    signal_id: z.string(),
-    city_id: z.string(),
-    reason_code: z.string().optional(),
-    ...baseEventFields,
-  }),
 ]);
 
-/**
- * Deterministic Qualified Open Definition:
- * A signal detail view is qualified when:
- * 1. The modal is intentionally opened (not a map pan or hover).
- * 2. AND either:
- *    a) The detail view remains open for >= 2,000ms without being dismissed.
- *    OR
- *    b) The user performs an explicit interaction (join, go, share, or expand venue).
- */
+const CLIENT_OBSERVATION_TYPES = new Set([
+  "map_opened",
+  "map_viewport_changed",
+  "map_filter_changed",
+  "map_entity_impression",
+  "map_entity_opened",
+  "area_selected",
+  "signal_impression",
+  "signal_opened",
+  "join_clicked",
+  "go_clicked",
+  "share_clicked",
+  "confirmation_submitted",
+  "not_there_submitted",
+  "report_submitted",
+  "local_post_opened",
+  "profile_opened",
+  "community_opened",
+  "place_opened",
+  "area_opened",
+]);
+
+export function isClientObservationEvent(event: AnalyticsEvent): boolean {
+  return CLIENT_OBSERVATION_TYPES.has(event.type);
+}
+
 export const QUALIFIED_OPEN_THRESHOLD_MS = 2000;
 
 export function isQualifiedOpen(
@@ -136,9 +207,6 @@ export interface AnalyticsAdapter {
   track(event: AnalyticsEvent): void;
 }
 
-/**
- * Memory analytics adapter for inspection in tests and development.
- */
 export class MemoryAnalyticsAdapter implements AnalyticsAdapter {
   public events: AnalyticsEvent[] = [];
 
@@ -152,27 +220,29 @@ export class MemoryAnalyticsAdapter implements AnalyticsAdapter {
   }
 }
 
-/**
- * Console analytics adapter for development environments.
- */
 export class ConsoleAnalyticsAdapter implements AnalyticsAdapter {
   track(event: AnalyticsEvent): void {
     assertNoRawCoordinates(event);
     if (process.env.NODE_ENV === "development") {
-      // Safe development logging of product events
       console.log(`[Analytics] ${event.type}:`, event);
     }
   }
 }
 
-/**
- * No-op analytics adapter for silent fallback when no external adapter is configured.
- */
 export class NoopAnalyticsAdapter implements AnalyticsAdapter {
   track(event: AnalyticsEvent): void {
     assertNoRawCoordinates(event);
   }
 }
+
+const rawCoordinateKeys = [
+  "latitude",
+  "longitude",
+  "lat",
+  "lng",
+  "coords",
+  "location",
+] as const;
 
 function assertNoRawCoordinates(event: unknown): void {
   if (typeof event !== "object" || event === null) return;
@@ -225,15 +295,21 @@ export function trackEvent(eventInput: AnalyticsEventInput): void {
     }
     return;
   }
+
+  assertNoRawCoordinates(parsed.data);
   activeAdapter.track(parsed.data);
 
-  if (typeof window !== "undefined" && typeof fetch === "function") {
+  if (
+    typeof window !== "undefined" &&
+    typeof fetch === "function" &&
+    isClientObservationEvent(parsed.data)
+  ) {
     fetch("/api/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(parsed.data),
     }).catch(() => {
-      // silently ignore telemetry send errors
+      // Telemetry failure must never block the product interaction.
     });
   }
 }

@@ -1,6 +1,6 @@
 import { ok, failure } from "@/lib/api";
 import { demoSignals } from "@/lib/demo";
-import { HCMC_CITY, type CityConfig } from "@/lib/domain";
+import { HCMC_CITY, isKnownFixturePlace, type CityConfig } from "@/lib/domain";
 import { publicConfig } from "@/lib/env";
 import { requestSupabase } from "@/lib/supabase";
 
@@ -18,6 +18,7 @@ export async function GET() {
         longitude: s.longitude,
         latitude: s.latitude,
         h3_parent: s.h3_parent,
+        data_origin: "fixture" as const,
       })),
     });
   }
@@ -27,6 +28,9 @@ export async function GET() {
     return failure("Cấu hình Supabase không sẵn sàng.", 503);
   }
 
+  // Keep this read compatible with production schema 008 during the deploy/migrate
+  // transition. Migration 009 becomes authoritative after it is applied; until then
+  // the three immutable seed UUIDs are a safe compatibility exclusion.
   const [placesRes, cityRes] = await Promise.all([
     db
       .from("places")
@@ -67,5 +71,18 @@ export async function GET() {
       }
     : HCMC_CITY;
 
-  return ok({ mode: "live", city, places: placesRes.data });
+  const places = (placesRes.data ?? [])
+    .filter(
+      (place) =>
+        (config.env !== "production" && config.env !== "staging") ||
+        !isKnownFixturePlace(place.id),
+    )
+    .map((place) => ({
+      ...place,
+      data_origin: isKnownFixturePlace(place.id)
+        ? ("fixture" as const)
+        : ("real" as const),
+    }));
+
+  return ok({ mode: "live", city, places });
 }

@@ -20,7 +20,7 @@ See [PRODUCT.md](PRODUCT.md) and the canonical [PRD v1](prd-v1.md) before making
 
 ## Current implementation status
 
-The repository implements the **Activities** primitive deeply and now also ships the map-native social layers: **Local Posts**, **Communities**, and **Rich Places + Area Following**. The existing Activity system remains one module of the broader social network.
+The repository implements the **Activities** primitive deeply and now also ships **Local Posts**, **Communities**, **Rich Places + Area Following**, and **Phase E1 Unified Social Map + Measurement Foundation**. The existing Activity system remains one module of the broader social network.
 
 Today the shipped foundation includes:
 
@@ -35,11 +35,12 @@ Today the shipped foundation includes:
 - Local Posts anchored to safe areas or public places
 - reactions, comments, reports, public profiles, and person follow graph
 - map-native Communities with create, join/leave, member posting, and moderation
-- unified map discovery for Local Posts and Communities
+- one bounded `/api/map` discovery boundary for Local Posts, Communities, Activities, and contextual Places
 - rich Place pages combining existing Posts, discoverable Activities, and Communities
 - explicit Place/Area follows, private `/following` collection, and bounded `/a` area discovery
 - contextual approved Place links alongside the social map, without a permanent business-pin layer
-- privacy-preserving analytics
+- privacy-preserving client observations separated from database-confirmed social-action evidence
+- versioned `WMLC_v0` based on authoritative real actions, with fixture/test traffic excluded
 
 Planned but **not yet shipped as complete social modules**:
 
@@ -47,9 +48,9 @@ Planned but **not yet shipped as complete social modules**:
 - richer Community administration
 - end-to-end Activity ↔ Community UX beyond the current optional database linkage
 
-Phases B (Local Posts), C (Communities core), and D (Rich Places + Area Following) are technically shipped. The Phase D loop is `map/social object → /p/[id] → follow Place/Area → /following → Place or /a area context`.
+Phases B (Local Posts), C (Communities core), D (Rich Places + Area Following), and E1 (Unified Social Map + Measurement Foundation) are technically shipped once the E1 PR, post-merge CI, hosted migration, and production smoke test are all verified. The E1 loop is `map viewport → Post / Community / Activity / Place → detail/action → return to map`.
 
-**Real-world market validation and retention validation have NOT passed merely because the code shipped.** Phase E is not started automatically. Production rollout is a separate gate: apply migration `202609140008_rich_places_area_following.sql` only after exact-head and post-merge CI succeed, and verify its canonical version in the target project.
+**Real-world market validation and retention validation have NOT passed merely because the code shipped.** E1 measurement explicitly distinguishes observations from authoritative facts. Production rollout is a separate gate: the canonical E1 database change is `202609140009_unified_social_map_measurement.sql`, applied only after exact-head and post-merge CI succeed.
 
 ## Product principles
 

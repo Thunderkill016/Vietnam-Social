@@ -351,13 +351,12 @@ Current graph edges include:
 - person follows person
 - user joins/leaves Community
 
-Future graph edges may include:
+Current graph edges also include:
 
-- user follows Community separately from membership
-- user follows place
-- user follows area
+- user follows approved public Place
+- user follows catalog-recognized coarse Area
 
-These future edges require separate product decisions and should not be silently inferred from membership or location.
+A future edge may include following a Community separately from membership. Membership, Place follow, Area follow, and person follow remain distinct and must never be silently inferred from one another or from device location.
 
 ## 11. Local Posts discovery
 
@@ -456,19 +455,21 @@ Expansion remains evidence-gated rather than code-driven.
 
 The Activity module keeps its existing operational metrics, but they are not sufficient to measure the social network as a whole.
 
-### North-star candidate
+### North-star candidate — `WMLC_v0`
 
-**Weekly meaningful local connections**: unique users who complete at least one meaningful local social action involving a real person, community, activity, or place.
+`WMLC_v0` is the number of unique **real authenticated users** who complete at least one qualifying **database-confirmed** local social action during the ISO week evaluated in `Asia/Ho_Chi_Minh`.
 
-Qualifying examples:
+Qualifying authoritative facts are:
 
-- comment/reply on a relevant Local Post
-- follow a contributor after opening local content
-- join a Community
-- join/go to an Activity
-- provide a valid post-activity confirmation
+- persisted Local Post comment
+- persisted person follow
+- persisted Community join
+- persisted Activity join/go
+- valid persisted Activity confirmation
+- persisted Place follow
+- persisted Area follow
 
-The exact metric definition must be versioned before it is used for investment decisions.
+Map opens, impressions, detail opens, failed button clicks, client-declared mutation success, demo/test traffic, and fixture-backed actions do not qualify. `WMLC_v0` is versioned measurement infrastructure, not proof that the metric is already validated as the final north star.
 
 ### Social activation
 
@@ -529,7 +530,7 @@ Continue measuring:
 - Local Post reactions, comments, reporting, and public contribution history
 - public social profiles and person follow/unfollow graph
 - map-native Communities with identity, membership, owner protection, member posting, and moderation
-- map discovery containing both Local Posts and Communities
+- unified bounded map discovery containing Local Posts, Communities, Activities, and contextual Places
 - optional Community linkage on Activity Signals at the database layer
 - rich Place social pages, explicit Place/Area following, and a private Following view
 - bounded area context and contextual approved Place discovery from the map
@@ -572,9 +573,15 @@ No GPS tracking, person-location access, business ratings, fake engagement or ge
 
 Real-world market validation and retention validation have NOT passed merely because the code shipped. Deployment and production migration are verified separately; Phase E requires a new explicit scope.
 
-### Phase E — HCMC density and retention
+### Phase E1 — Unified Social Map + Measurement Foundation — technical scope
 
-Grow genuine social activity across HCMC while preserving quality and safety.
+Unifies Posts, Communities, Activities, and contextual Places in the primary map workspace and introduces strict measurement integrity: client observations are not authoritative mutation facts, fixture/test traffic is excluded from real evidence, and `WMLC_v0` is calculated from database-confirmed social actions.
+
+Technical completion does not establish density, retention, or product-market fit.
+
+### Phase E2+ — HCMC density, retention, and deeper participation
+
+Continue improving genuine social activity across HCMC while preserving quality and safety. Later scopes require explicit assignment and should build on E1 rather than adding unrelated breadth.
 
 ### Phase F — Multi-city expansion
 

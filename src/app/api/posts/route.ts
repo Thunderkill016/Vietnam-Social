@@ -1,5 +1,6 @@
-import { boundsSchema, HCMC_CITY } from "@/lib/domain";
+import { boundsSchema, HCMC_CITY, isKnownFixturePlace } from "@/lib/domain";
 import { databaseFailure, failure, ok, readBody } from "@/lib/api";
+import { publicConfig } from "@/lib/env";
 import { requestSupabase } from "@/lib/supabase";
 import { createLocalPostSchema, localPostSchema } from "@/lib/social";
 
@@ -36,9 +37,18 @@ export async function GET(request: Request) {
     return failure("Dữ liệu bài địa phương chưa đúng định dạng.", 502, {
       parseErrors: parsed.error.issues,
     });
+
+  const config = publicConfig();
+  const posts = parsed.data.filter(
+    (post) =>
+      !post.place_id ||
+      (config.env !== "production" && config.env !== "staging") ||
+      !isKnownFixturePlace(post.place_id),
+  );
+
   return ok({
     mode: "live",
-    posts: parsed.data,
+    posts,
     truncated: parsed.data.length === 100,
   });
 }
@@ -62,6 +72,15 @@ export async function POST(request: Request) {
   const parsed = createLocalPostSchema.safeParse(body);
   if (!parsed.success)
     return failure(parsed.error.issues[0]?.message ?? "Bài đăng không hợp lệ.");
+
+  const config = publicConfig();
+  if (
+    parsed.data.place_id &&
+    (config.env === "production" || config.env === "staging") &&
+    isKnownFixturePlace(parsed.data.place_id)
+  ) {
+    return failure("Địa điểm không khả dụng.", 404);
+  }
 
   const { data, error } = await db.rpc("create_local_post", {
     p_input: parsed.data,

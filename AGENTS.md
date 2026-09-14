@@ -32,11 +32,11 @@ Vietnam Social supports HCMC as the first city. Operations may concentrate acqui
 
 The existing `ACTIVITY` Signal system remains a first-class module. Do not delete or weaken its expiry, trust, moderation, or privacy guarantees merely because the broader social model now exists.
 
-Phases B (Local Posts), C (Communities core), and D (Rich Places + Area Following) are technically shipped. Preserve the existing social loop and the Phase D loop:
+Phases B (Local Posts), C (Communities core), D (Rich Places + Area Following), and the Phase E1 Unified Social Map/measurement foundation are technically implemented. Preserve the existing social loop and the Phase D loop:
 
 `Map/social object → Place → inspect local context → follow Place/Area → Following → return`
 
-Place follows, coarse Area follows and Community membership are distinct edges. Area identity comes from approved public Places, never client GPS. Phase E is not authorized by a generic “continue”; review real evidence and ask for explicit scope. Technical shipping does not establish market or retention validation.
+Place follows, coarse Area follows and Community membership are distinct edges. Area identity comes from approved public Places, never client GPS. Client observations must never be treated as authoritative successful mutations; `WMLC_v0` comes from database-confirmed social-action facts. Fixture/test traffic must remain excluded from real evidence. Technical shipping does not establish market or retention validation. Do not start a later phase without explicit scope.
 
 Do not add unrelated social breadth at the same time. Unless explicitly approved, defer:
 

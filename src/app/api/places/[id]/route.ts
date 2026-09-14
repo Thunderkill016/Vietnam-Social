@@ -1,14 +1,21 @@
 import { z } from "zod";
 import { databaseFailure, failure, ok, readBody } from "@/lib/api";
+import { isKnownFixturePlace } from "@/lib/domain";
+import { publicConfig } from "@/lib/env";
 import { requestSupabase } from "@/lib/supabase";
 import { placeFollowActionSchema, placeSocialPageSchema } from "@/lib/place";
+
+function fixtureHiddenInThisEnvironment(id: string) {
+  const env = publicConfig().env;
+  return isKnownFixturePlace(id) && (env === "production" || env === "staging");
+}
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  if (!z.uuid().safeParse(id).success)
+  if (!z.uuid().safeParse(id).success || fixtureHiddenInThisEnvironment(id))
     return failure("Không tìm thấy địa điểm.", 404);
 
   const db = requestSupabase(request);
@@ -32,7 +39,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  if (!z.uuid().safeParse(id).success)
+  if (!z.uuid().safeParse(id).success || fixtureHiddenInThisEnvironment(id))
     return failure("Không tìm thấy địa điểm.", 404);
 
   const db = requestSupabase(request);

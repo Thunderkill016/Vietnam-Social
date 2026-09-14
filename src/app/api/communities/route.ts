@@ -1,5 +1,6 @@
-import { boundsSchema, HCMC_CITY } from "@/lib/domain";
+import { boundsSchema, HCMC_CITY, isKnownFixturePlace } from "@/lib/domain";
 import { databaseFailure, failure, ok, readBody } from "@/lib/api";
+import { publicConfig } from "@/lib/env";
 import { requestSupabase } from "@/lib/supabase";
 import { communitySchema, createCommunitySchema } from "@/lib/community";
 
@@ -37,7 +38,16 @@ export async function GET(request: Request) {
       parseErrors: parsed.error.issues,
     });
   }
-  return ok({ mode: "live", communities: parsed.data });
+
+  const config = publicConfig();
+  const communities = parsed.data.filter(
+    (community) =>
+      !community.place_id ||
+      (config.env !== "production" && config.env !== "staging") ||
+      !isKnownFixturePlace(community.place_id),
+  );
+
+  return ok({ mode: "live", communities });
 }
 
 export async function POST(request: Request) {
@@ -57,6 +67,15 @@ export async function POST(request: Request) {
     return failure(
       parsed.error.issues[0]?.message ?? "Cộng đồng không hợp lệ.",
     );
+
+  const config = publicConfig();
+  if (
+    parsed.data.place_id &&
+    (config.env === "production" || config.env === "staging") &&
+    isKnownFixturePlace(parsed.data.place_id)
+  ) {
+    return failure("Địa điểm không khả dụng.", 404);
+  }
 
   const { data, error } = await db.rpc("create_community", {
     p_input: parsed.data,

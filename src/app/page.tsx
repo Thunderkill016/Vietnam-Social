@@ -1,5 +1,5 @@
-import { SocialExplore } from "@/components/social-explore";
+import { UnifiedSocialExplore } from "@/components/unified-social-explore";
 
 export default function Page() {
-  return <SocialExplore />;
+  return <UnifiedSocialExplore />;
 }

@@ -60,6 +60,16 @@ export const DEFAULT_CENTER: [number, number] = HCMC_CITY.default_center;
 export const HCMC_BOUNDS = HCMC_CITY.operational_bounds;
 export const PILOT = HCMC_BOUNDS; // Compatibility alias for previous callers
 
+/** Stable local/CI fixture identities; names are deliberately not authoritative. */
+export const FIXTURE_PLACE_IDS = new Set([
+  "10000000-0000-4000-8000-000000000001",
+  "10000000-0000-4000-8000-000000000002",
+  "10000000-0000-4000-8000-000000000003",
+]);
+export function isKnownFixturePlace(id: string): boolean {
+  return FIXTURE_PLACE_IDS.has(id);
+}
+
 export const MAX_RESULTS = 100;
 // A six-hour discovery window and 24-hour lifetime come from PRD sections 2/10.
 export const DISCOVERY_HOURS = 6;
@@ -103,6 +113,7 @@ export type Place = {
   latitude: number;
   h3_parent: string;
   enabled?: boolean;
+  data_origin?: "real" | "fixture";
 };
 
 export type Viewer = {
