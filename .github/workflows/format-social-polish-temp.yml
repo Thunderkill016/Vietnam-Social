@@ -1,0 +1,24 @@
+name: Format social polish temp
+
+on:
+  push:
+    branches:
+      - feat/social-map-empty-marker-polish
+
+permissions:
+  contents: read
+
+jobs:
+  format-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Format and print diff
+        run: |
+          npx prettier --write src/app/social-polish.css src/components/unified-social-map.tsx
+          git diff -- src/app/social-polish.css src/components/unified-social-map.tsx
