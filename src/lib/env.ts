@@ -118,13 +118,17 @@ export function readPublicConfig(input: {
 
 export function publicConfig(): PublicConfig {
   return readPublicConfig({
-    url: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    key: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL,
+    key:
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+      process.env.SUPABASE_PUBLISHABLE_KEY ||
+      process.env.SUPABASE_ANON_KEY,
     style: process.env.NEXT_PUBLIC_MAP_STYLE_URL,
     appEnv:
       process.env.NEXT_PUBLIC_APP_ENV ||
       (process.env.NODE_ENV === "production" &&
-      process.env.NEXT_PUBLIC_SUPABASE_URL
+      (process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL)
         ? "production"
         : undefined),
   });
