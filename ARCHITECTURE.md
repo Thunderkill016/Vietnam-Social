@@ -1,6 +1,6 @@
 # Vietnam Social Architecture
 
-Status: proposed for MVP v0.1.
+Status: first local implementation for MVP v0.1; no production deployment.
 
 ## System shape
 
@@ -82,3 +82,15 @@ The server produces both a numeric internal score and a public label: `unconfirm
 ## Deferred architecture
 
 Do not build chat, follower graphs, recommendation ML, merchant billing, cross-city sharding, dedicated search infrastructure, or a separate event-ingestion pipeline in v0.1.
+
+## First-slice implementation details
+
+`src/components/explore.tsx` owns the map/list and dialog journey; `src/components/activity-map.tsx` adapts MapLibre. API routes validate input and forward the caller JWT using the public Supabase key. Mutation authorization and domain rules live in database RPCs, with the private schema excluded from PostgREST.
+
+`supabase/migrations/202609140001_first_slice.sql` defines the public venue catalog and private profiles/signals/actions/audit tables. Every table has RLS; only explicit public read/RPC grants are available to clients. New users always become members. Operators alone provision venue inventory and host/moderator roles.
+
+The first slice accepts public venue IDs only. Location and H3 partitions come from the operator-owned venue record. PostGIS validates the pilot envelope and viewport; no H3 match can substitute for a geographic match. The pilot envelope is a proposed operational boundary, not a claim about administrative district borders.
+
+The SQL projection computes confidence on read from unique current observations. Mutation audit events preserve reason codes. Natural expiry is enforced by query predicates, with visible-browser refetch at most every 15 seconds and immediate invalidation on writes. Realtime messages carry only an ID; no full row broadcasting is used.
+
+Reference implementations used: [Next.js App Router](https://nextjs.org/docs/app/getting-started), [Supabase PostGIS](https://supabase.com/docs/guides/database/extensions/postgis), [database Broadcast](https://supabase.com/docs/guides/realtime/broadcast), and [MapLibre map initialization](https://maplibre.org/maplibre-gl-js/docs/examples/display-a-map/).

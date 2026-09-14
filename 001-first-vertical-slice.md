@@ -1,6 +1,6 @@
 # Task 001 — First Real Signal Vertical Slice
 
-Do this only after the seven-day evidence gate in [prd-v0.1.md](prd-v0.1.md) passes.
+The original sequencing required the seven-day evidence gate in [prd-v0.1.md](prd-v0.1.md). On 2026-09-14 the owner explicitly authorized implementation and requested local Supabase preparation. Development may proceed; the evidence gate remains unmeasured and public rollout is not authorized.
 
 ## Objective
 
@@ -113,3 +113,15 @@ Do not mark PASS for commands that were skipped or unavailable. Report blockers 
 - privacy/security checks
 - unresolved risks
 - one recommended next task only
+
+## Implementation record — 2026-09-14
+
+The active development objective is a locally runnable first slice, with a read-only demo for environments without Supabase. Reuse Next.js, Supabase Auth/RPC/Broadcast, PostGIS, MapLibre, H3, Radix Dialog and Playwright rather than replacing their infrastructure.
+
+Measurable engineering exit: anonymous read isolation, host-only venue publication, idempotent cross-session participation, independent confirmation, authoritative realtime refresh, and expiry without a worker. SQL regression cases and the two-session browser test encode these behaviors. A passing demo suite alone does not establish this exit.
+
+Current local environment has Node.js but no Docker/Podman. The Supabase startup check therefore cannot pass on this machine yet. SQL and live-flow checks are also defined in a disposable CI stack. Refer to command output/CI for executed results rather than treating test files as proof.
+
+Implemented scope includes the app shell, map/list, filters/search, authentication forms, venue-only publication, participation/verification/reporting, owner resolution, moderator report queue/removal, local seed configuration, private audit inputs and share metadata. Browser location is optional and ephemeral.
+
+Still outside the completed acceptance claim: measured pilot supply/demand, calibrated confidence, full conversion analytics, account deletion/retention operations, and a public production deployment. Generated database types are produced from a running local stack and retained as a CI artifact; runtime RPC projections are validated at the application boundary.
