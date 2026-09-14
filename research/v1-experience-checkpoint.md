@@ -20,3 +20,7 @@ Do not reintroduce user-facing language such as `UNIFIED SOCIAL MAP`, `primitive
 Do not make raw entity counters the hero of the page. Social identity, conversation, community context and real-world participation should remain more prominent than database categories.
 
 The previous split between a social homepage and a separately branded Activity finder is retained only as historical implementation context. The public discovery surfaces should use one Vietnam Social shell; specialized host/operator tooling may remain behind a management route.
+
+## Implementation boundary
+
+The V1 reset changes the public experience layer, not the evidence model, geographic privacy rules, or authoritative social-action accounting shipped in E1/E1.1. Temporary formatting or patch workflows must not remain in the final branch.
