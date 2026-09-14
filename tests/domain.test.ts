@@ -1,14 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
   boundsSchema,
+  cityConfigSchema,
   createSignalSchema,
   distanceKm,
   filterSignals,
+  HCMC_CITY,
+  isWithinCity,
   signalSchema,
 } from "../src/lib/domain";
 import { demoSignals } from "../src/lib/demo";
 import { readPublicConfig } from "../src/lib/env";
 import { readBody } from "../src/lib/api";
+
 const input = {
   request_id: "a0000000-0000-4000-8000-000000000001",
   title: "Cầu lông tối nay",
@@ -19,6 +23,42 @@ const input = {
   expires_at: "2026-09-14T20:00:00+07:00",
   capacity_note: "Còn 2 chỗ",
 };
+
+describe("city domain model & HCMC configuration", () => {
+  it("validates canonical HCMC configuration", () => {
+    expect(cityConfigSchema.safeParse(HCMC_CITY).success).toBe(true);
+    expect(HCMC_CITY.id).toBe("hcm");
+    expect(HCMC_CITY.slug).toBe("ho-chi-minh");
+    expect(HCMC_CITY.timezone).toBe("Asia/Ho_Chi_Minh");
+    expect(HCMC_CITY.country_code).toBe("VN");
+    expect(HCMC_CITY.active).toBe(true);
+    expect(HCMC_CITY.launch_state).toBe("live");
+  });
+
+  it("checks coordinates against HCMC operational boundaries", () => {
+    // Inside HCMC (Ben Thanh Q1, Go Vap, Can Gio)
+    expect(isWithinCity([106.695, 10.776], HCMC_CITY)).toBe(true);
+    expect(isWithinCity([106.675, 10.833], HCMC_CITY)).toBe(true);
+    expect(isWithinCity([106.95, 10.45], HCMC_CITY)).toBe(true);
+
+    // Outside HCMC (Hanoi, Da Nang, Singapore)
+    expect(isWithinCity([105.85, 21.03], HCMC_CITY)).toBe(false);
+    expect(isWithinCity([108.22, 16.07], HCMC_CITY)).toBe(false);
+    expect(isWithinCity([103.85, 1.29], HCMC_CITY)).toBe(false);
+  });
+
+  it("accepts city_id in viewport bounds", () => {
+    const valid = boundsSchema.safeParse({
+      west: 106.66,
+      south: 10.75,
+      east: 106.72,
+      north: 10.8,
+      city_id: "hcm",
+    });
+    expect(valid.success).toBe(true);
+  });
+});
+
 describe("activity boundary", () => {
   it("accepts bounded venue-only activity", () =>
     expect(createSignalSchema.safeParse(input).success).toBe(true));
@@ -65,39 +105,70 @@ describe("activity boundary", () => {
     );
   });
 });
+
 describe("environment", () => {
-  it("uses explicit read-only demo without credentials", () =>
-    expect(readPublicConfig({}).mode).toBe("demo"));
+  it("uses explicit read-only demo without credentials", () => {
+    const config = readPublicConfig({});
+    expect(config.mode).toBe("demo");
+    expect(config.env).toBe("demo");
+  });
+
   it("fails on partial configuration instead of silently becoming demo", () =>
     expect(() =>
       readPublicConfig({ url: "https://example.supabase.co" }),
-    ).toThrow());
+    ).toThrow("không đầy đủ"));
+
   it("rejects service-role and secret keys", () => {
     const jwt = `eyJ.${btoa(JSON.stringify({ role: "service_role" }))}.signature`;
     expect(() =>
       readPublicConfig({ url: "https://example.supabase.co", key: jwt }),
-    ).toThrow();
+    ).toThrow("secret/service-role");
     expect(() =>
       readPublicConfig({
         url: "https://example.supabase.co",
         key: "sb_secret_no",
       }),
-    ).toThrow();
+    ).toThrow("secret key");
   });
+
   it("allows local anon JWT", () => {
     const jwt = `eyJ.${btoa(JSON.stringify({ role: "anon" }))}.signature`;
-    expect(
-      readPublicConfig({ url: "http://127.0.0.1:54321", key: jwt }).mode,
-    ).toBe("live");
+    const config = readPublicConfig({
+      url: "http://127.0.0.1:54321",
+      key: jwt,
+    });
+    expect(config.mode).toBe("live");
+    expect(config.env).toBe("local");
   });
+
   it("rejects insecure remote endpoints", () =>
     expect(() =>
       readPublicConfig({
         url: "http://example.com",
         key: "sb_publishable_test",
       }),
-    ).toThrow());
+    ).toThrow("HTTPS hoặc địa chỉ local"));
+
+  it("enforces HTTPS and non-localhost in production mode", () => {
+    const anonJwt = `eyJ.${btoa(JSON.stringify({ role: "anon" }))}.signature`;
+    expect(() =>
+      readPublicConfig({
+        url: "http://127.0.0.1:54321",
+        key: anonJwt,
+        appEnv: "production",
+      }),
+    ).toThrow("không được trỏ về địa chỉ localhost");
+
+    const validProd = readPublicConfig({
+      url: "https://project-id.supabase.co",
+      key: anonJwt,
+      appEnv: "production",
+    });
+    expect(validProd.mode).toBe("live");
+    expect(validProd.env).toBe("production");
+  });
 });
+
 describe("request bounds", () => {
   it("rejects malformed JSON", async () => {
     await expect(

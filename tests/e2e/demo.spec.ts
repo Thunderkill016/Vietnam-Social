@@ -13,6 +13,7 @@ test("browse, search, inspect details, share and refuse fake participation", asy
   await expect(
     page.getByText("Địa điểm và hoạt động là minh họa", { exact: false }),
   ).toBeVisible();
+  await expect(page.getByText("TP. Hồ Chí Minh")).toBeVisible();
   await page
     .getByRole("textbox", { name: "Tìm hoạt động hoặc địa điểm" })
     .fill("cau long");
@@ -100,7 +101,7 @@ test("map worker processes data without a third-party network dependency", async
                 {
                   type: "Feature",
                   properties: {},
-                  geometry: { type: "Point", coordinates: [106.666, 10.817] },
+                  geometry: { type: "Point", coordinates: [106.675, 10.815] },
                 },
               ],
             },
@@ -157,4 +158,24 @@ test("publishing form exposes unambiguous category and venue labels", async ({
       .getByRole("dialog")
       .getByRole("button", { name: "Đăng hoạt động", exact: true }),
   ).toBeDisabled();
+});
+
+test("displays honest empty state when viewport has no active signals", async ({
+  page,
+}) => {
+  await page.goto("/?west=106.90&south=10.40&east=106.95&north=10.45");
+  await expect(
+    page.getByRole("heading", {
+      name: "Chưa có hoạt động đang diễn ra trong khu vực này.",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Về trung tâm TP. Hồ Chí Minh/ }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: /Về trung tâm TP. Hồ Chí Minh/ })
+    .click();
+  await expect(
+    page.getByRole("button", { name: /Thể thao.*Cầu lông tối nay/ }),
+  ).toBeVisible({ timeout: 10_000 });
 });

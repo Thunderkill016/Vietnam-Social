@@ -270,13 +270,36 @@ If the activity loop works, test in this order:
 
 Never sell precise personal location data.
 
-## 17. Rollout
+## 17. Geographic strategy and rollout
+
+The multi-city expansion order is:
+
+1. **Phase 1: Ho Chi Minh City** (current technical foundation)
+2. **Phase 2: Hanoi** (deferred)
+3. **Phase 3: Da Nang** (deferred)
+4. **Phase 4: Other Vietnamese cities** (deferred)
+
+### Invariant: Expansion is evidence-gated, not code-driven
+
+The HCMC production foundation (Task 002) technically enables the entire HCMC operational boundary (`[106.35, 10.35, 107.05, 11.20]`), but **user adoption across HCMC remains unmeasured and unvalidated**.
+
+Operations must deliberately concentrate supply in dense walkable/ridable clusters rather than spreading thin across the metropolitan area.
+
+A new city phase (e.g. Hanoi or Da Nang) may only be launched when HCMC meets all pilot success criteria:
+
+- Verified host supply density (>=15 active hosts/cluster, >=2 activities/week).
+- Conversion rate (>=15% of qualified opens converting to `join` / `go`).
+- Physical outcome confirmations (>=25 confirmed real-world actions).
+- Host retention (>=30% repeating into month 2).
+- Stale/disputed Signal rate strictly under 5%.
+
+Building software or adding database rows for new cities without prior phase validation is explicitly prohibited.
 
 - Phase A: seven-day manual evidence gate
 - Phase B: thin vertical slice for invited hosts/users
-- Phase C: four-week cluster pilot
-- Phase D: improve density, trust, and retention in the same cluster
-- Phase E: expand one adjacent cluster only after success criteria hold
+- Phase C: four-week cluster pilot in HCMC
+- Phase D: improve density, trust, and retention in HCMC clusters
+- Phase E: expand to Phase 2 (Hanoi) only after HCMC success criteria hold
 
 ## 18. Open decisions
 
