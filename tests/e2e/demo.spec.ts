@@ -55,6 +55,15 @@ test("mobile fits screen, supports list fallback and keyboard dialog", async ({
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
+  await page
+    .getByRole("button", { name: "Đăng hoạt động", exact: true })
+    .click();
+  await expect(
+    page
+      .getByRole("dialog")
+      .getByRole("heading", { name: "Rủ mọi người cùng tham gia." }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
   await page.screenshot({ path: "artifacts/mobile.png", fullPage: true });
   await page.getByRole("button", { name: "Xem bản đồ", exact: true }).click();
   await expect(

@@ -435,7 +435,11 @@ export function Explore({ initialId }: { initialId?: string }) {
               Đăng nhập
             </button>
           )}
-          <button className="dark-button" onClick={() => setCreateOpen(true)}>
+          <button
+            className="dark-button"
+            aria-label="Đăng hoạt động"
+            onClick={() => setCreateOpen(true)}
+          >
             <Plus size={18} />
             <span>Đăng hoạt động</span>
           </button>
