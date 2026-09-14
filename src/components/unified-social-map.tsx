@@ -197,9 +197,9 @@ export function UnifiedSocialMap({
           </span>
           <strong>Khu vực này đang chờ người mở lời.</strong>
           <p>
-            Vietnam Social không lấp bản đồ bằng dữ liệu giả. Bạn có thể đặt
-            một câu hỏi, chia sẻ điều hữu ích hoặc tạo một cuộc gặp thật cho
-            người quanh đây.
+            Vietnam Social không lấp bản đồ bằng dữ liệu giả. Bạn có thể đặt một
+            câu hỏi, chia sẻ điều hữu ích hoặc tạo một cuộc gặp thật cho người
+            quanh đây.
           </p>
           <div className="vs-map-empty__actions">
             <Link className="vs-map-empty__action" href="/contribute">

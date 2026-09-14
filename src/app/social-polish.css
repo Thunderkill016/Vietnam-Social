@@ -221,7 +221,8 @@ aside[aria-label="Đời sống quanh đây"] article p {
   color: #3f4d45;
 }
 
-aside[aria-label="Đời sống quanh đây"] article:has(.lucide-message-circle)::before {
+aside[aria-label="Đời sống quanh đây"]
+  article:has(.lucide-message-circle)::before {
   background: #2f8d68;
 }
 
@@ -233,7 +234,8 @@ aside[aria-label="Đời sống quanh đây"] article:has(.lucide-activity)::bef
   background: #e77b3e;
 }
 
-aside[aria-label="Đời sống quanh đây"] section[aria-label="Nội dung đang chọn"] {
+aside[aria-label="Đời sống quanh đây"]
+  section[aria-label="Nội dung đang chọn"] {
   border-color: #aebd73;
   box-shadow:
     0 0 0 3px rgba(216, 243, 106, 0.22),
