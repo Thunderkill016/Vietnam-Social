@@ -1,6 +1,11 @@
 import { failure, ok } from "@/lib/api";
 import { communitySchema } from "@/lib/community";
-import { boundsSchema, HCMC_CITY, signalSchema } from "@/lib/domain";
+import {
+  boundsSchema,
+  HCMC_CITY,
+  isKnownFixturePlace,
+  signalSchema,
+} from "@/lib/domain";
 import { publicConfig } from "@/lib/env";
 import { localPostSchema } from "@/lib/social";
 import {
@@ -62,11 +67,12 @@ export async function GET(request: Request) {
   const wants = (kind: SocialMapFilter) => all || kinds.has(kind);
   const config = publicConfig();
 
-  let placesQuery = db
+  // Keep direct Place reads compatible with production schema 008 until migration
+  // 009 is applied. The database provenance column becomes authoritative after
+  // migration; these stable UUIDs are only a safe rollout fallback.
+  const placesQuery = db
     .from("places")
-    .select(
-      "id,city_id,name,area,longitude,latitude,h3_parent,data_origin",
-    )
+    .select("id,city_id,name,area,longitude,latitude,h3_parent")
     .eq("enabled", true)
     .eq("city_id", bounds.data.city_id ?? HCMC_CITY.id)
     .gte("longitude", bounds.data.west)
@@ -75,10 +81,6 @@ export async function GET(request: Request) {
     .lte("latitude", bounds.data.north)
     .order("name", { ascending: true })
     .limit(12);
-
-  if (config.env === "production" || config.env === "staging") {
-    placesQuery = placesQuery.eq("data_origin", "real");
-  }
 
   const [postsRes, communitiesRes, activitiesRes, placesRes] = await Promise.all([
     wants("local_post")
@@ -108,7 +110,19 @@ export async function GET(request: Request) {
   const posts = localPostSchema.array().safeParse(postsRes.data ?? []);
   const communities = communitySchema.array().safeParse(communitiesRes.data ?? []);
   const activities = signalSchema.array().safeParse(activitiesRes.data ?? []);
-  const places = socialMapPlaceSchema.array().safeParse(placesRes.data ?? []);
+  const rawPlaces = (placesRes.data ?? [])
+    .filter(
+      (place) =>
+        (config.env !== "production" && config.env !== "staging") ||
+        !isKnownFixturePlace(place.id),
+    )
+    .map((place) => ({
+      ...place,
+      data_origin: isKnownFixturePlace(place.id)
+        ? ("fixture" as const)
+        : ("real" as const),
+    }));
+  const places = socialMapPlaceSchema.array().safeParse(rawPlaces);
   if (!posts.success || !communities.success || !activities.success || !places.success) {
     return failure("Dữ liệu bản đồ xã hội chưa đúng định dạng.", 502);
   }
