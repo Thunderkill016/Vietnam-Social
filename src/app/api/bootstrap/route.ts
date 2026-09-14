@@ -18,6 +18,7 @@ export async function GET() {
         longitude: s.longitude,
         latitude: s.latitude,
         h3_parent: s.h3_parent,
+        data_origin: "fixture" as const,
       })),
     });
   }
@@ -27,12 +28,20 @@ export async function GET() {
     return failure("Cấu hình Supabase không sẵn sàng.", 503);
   }
 
+  let placesQuery = db
+    .from("places")
+    .select("id,city_id,name,area,longitude,latitude,h3_parent,data_origin")
+    .eq("enabled", true)
+    .limit(100);
+
+  // Local/CI keeps deterministic fixture Places. Production/staging never presents
+  // them as genuine supply.
+  if (config.env === "production" || config.env === "staging") {
+    placesQuery = placesQuery.eq("data_origin", "real");
+  }
+
   const [placesRes, cityRes] = await Promise.all([
-    db
-      .from("places")
-      .select("id,city_id,name,area,longitude,latitude,h3_parent")
-      .eq("enabled", true)
-      .limit(100),
+    placesQuery,
     db
       .from("cities")
       .select(
