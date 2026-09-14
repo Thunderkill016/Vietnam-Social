@@ -7,9 +7,7 @@ import { placeFollowActionSchema, placeSocialPageSchema } from "@/lib/place";
 
 function fixtureHiddenInThisEnvironment(id: string) {
   const env = publicConfig().env;
-  return (
-    isKnownFixturePlace(id) && (env === "production" || env === "staging")
-  );
+  return isKnownFixturePlace(id) && (env === "production" || env === "staging");
 }
 
 export async function GET(
@@ -24,8 +22,7 @@ export async function GET(
   if (!db) return failure("Trang địa điểm chưa có trong bản xem thử.", 404);
 
   const { data, error } = await db.rpc("get_place_social_page", { p_id: id });
-  if (error)
-    return failure("Chưa tải được địa điểm.", 503, { dbError: error });
+  if (error) return failure("Chưa tải được địa điểm.", 503, { dbError: error });
   if (!data) return failure("Không tìm thấy địa điểm.", 404);
 
   const parsed = placeSocialPageSchema.safeParse(data);

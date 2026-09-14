@@ -632,3 +632,225 @@ grant execute on function public.comment_local_post(uuid,text),
   public.set_area_follow(text,text,boolean),
   public.act_on_signal(uuid,text,text)
 to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Pre-production E1 compatibility refinement (squashed before hosted rollout)
+-- ---------------------------------------------------------------------------
+
+-- Phase E1 compatibility: deterministic fixture Activities remain usable in local/CI,
+-- but only actions anchored to real Places can contribute authoritative real evidence.
+
+create or replace function public.act_on_signal(p_id uuid,p_action text,p_reason text default '')
+returns void
+language plpgsql
+security definer
+set search_path=''
+as $$
+declare
+  actor uuid:=auth.uid();
+  sig app_private.signals;
+  bucket text;
+  old_value text;
+  v_city text;
+  v_area text;
+  v_origin text;
+begin
+  if actor is null then raise exception using errcode='VS001',message='authentication required'; end if;
+  perform pg_advisory_xact_lock(hashtextextended(actor::text,0));
+  select * into sig from app_private.signals where id=p_id for update;
+  if sig.id is null or sig.status<>'active' or sig.expires_at<=now() then
+    raise exception using errcode='VS003',message='activity unavailable';
+  end if;
+
+  select city_id,area,data_origin into v_city,v_area,v_origin
+  from public.places
+  where id=sig.place_id and enabled;
+
+  if p_action not in ('resolve','remove') and (sig.starts_at>now()+interval '6 hours' or v_city is null) then
+    raise exception using errcode='VS003',message='activity unavailable';
+  end if;
+
+  if p_action='resolve' or p_action='remove' then
+    if (p_action='resolve' and sig.author_id<>actor)
+       or (p_action='remove' and not exists(select 1 from app_private.profiles where id=actor and role='moderator')) then
+      raise exception using errcode='VS002',message='forbidden';
+    end if;
+    update app_private.signals
+    set status=case when p_action='resolve' then 'resolved' else 'removed' end
+    where id=p_id;
+  else
+    if p_action not in ('join','go','confirm','not_there','report')
+       or p_action is null or length(p_reason)>300 then
+      raise exception using errcode='VS005',message='invalid action';
+    end if;
+    if actor=sig.author_id and p_action in ('confirm','not_there') then
+      raise exception using errcode='VS004',message='self verification forbidden';
+    end if;
+
+    bucket:=case
+      when p_action in ('join','go') then 'attendance'
+      when p_action in ('confirm','not_there') then 'verification'
+      else 'report'
+    end;
+
+    select value into old_value
+    from app_private.actions
+    where signal_id=p_id and user_id=actor and kind=bucket;
+    if old_value=p_action then return; end if;
+
+    if (select count(*) from app_private.audit_events where actor_id=actor and created_at>now()-interval '1 minute')>=30 then
+      raise exception using errcode='VS006',message='action rate limit';
+    end if;
+
+    insert into app_private.actions(signal_id,user_id,kind,value,reason)
+    values(p_id,actor,bucket,p_action,coalesce(p_reason,''))
+    on conflict(signal_id,user_id,kind)
+    do update set value=excluded.value,reason=excluded.reason,updated_at=now();
+
+    -- Fixture-backed Activities are deterministic local/CI fixtures, not real product evidence.
+    if v_origin='real' then
+      if p_action='join' then
+        perform app_private.record_social_action('activity_join','activity',p_id::text,v_city,v_area);
+      elsif p_action='go' then
+        perform app_private.record_social_action('activity_go','activity',p_id::text,v_city,v_area);
+      elsif p_action='confirm' then
+        perform app_private.record_social_action('activity_confirm','activity',p_id::text,v_city,v_area);
+      end if;
+    end if;
+  end if;
+
+  insert into app_private.audit_events(signal_id,actor_id,reason_code)
+  values(p_id,actor,p_action);
+end;
+$$;
+
+revoke all on function public.act_on_signal(uuid,text,text) from public,anon,authenticated;
+grant execute on function public.act_on_signal(uuid,text,text) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Pre-production E1 compatibility refinement (squashed before hosted rollout)
+-- ---------------------------------------------------------------------------
+
+-- Phase E1 compatibility: local/CI may render deterministic fixture Place pages,
+-- while production application boundaries exclude them and follow mutations remain blocked.
+-- Also preserve the legacy map_opened `zoom` observation field in the strict event contract.
+
+create or replace function app_private.project_place_social(p_id uuid)
+returns jsonb
+language sql
+stable
+security definer
+set search_path=''
+as $$
+  select jsonb_build_object(
+    'id',p.id,
+    'city_id',p.city_id,
+    'name',p.name,
+    'area',case
+      when p.data_origin='fixture' then trim(p.area)
+      else app_private.canonical_area(p.city_id,p.area)
+    end,
+    'longitude',p.longitude,
+    'latitude',p.latitude,
+    'h3_parent',p.h3_parent,
+    'follower_count',case when p.data_origin='fixture' then 0 else (
+      select count(*) from app_private.place_follows f where f.place_id=p.id
+    ) end,
+    'area_follower_count',case when p.data_origin='fixture' then 0 else (
+      select count(*) from app_private.area_follows f
+      where f.city_id=p.city_id and f.area=app_private.canonical_area(p.city_id,p.area)
+    ) end,
+    'viewer_follows',case
+      when p.data_origin='fixture' or auth.uid() is null then false
+      else exists(select 1 from app_private.place_follows f where f.user_id=auth.uid() and f.place_id=p.id)
+    end,
+    'viewer_follows_area',case
+      when p.data_origin='fixture' or auth.uid() is null then false
+      else exists(
+        select 1 from app_private.area_follows f
+        where f.user_id=auth.uid()
+          and f.city_id=p.city_id
+          and f.area=app_private.canonical_area(p.city_id,p.area)
+      )
+    end
+  )
+  from public.places p
+  join public.cities c on c.id=p.city_id
+  where p.id=p_id and p.enabled and c.active;
+$$;
+revoke all on function app_private.project_place_social(uuid) from public,anon,authenticated;
+
+create or replace function public.record_client_event(p_event jsonb)
+returns void
+language plpgsql
+security definer
+set search_path=''
+as $$
+declare
+  actor uuid := auth.uid();
+  v_type text := p_event->>'type';
+  v_city_id text := coalesce(p_event->>'city_id', 'hcm');
+  v_signal_id uuid := null;
+  v_session text := coalesce(nullif(trim(p_event->>'session_id'),''), 'anonymous');
+  v_qualified boolean := coalesce((p_event->>'is_qualified')::boolean, false);
+  v_subject_type text := nullif(trim(p_event->>'subject_type'),'');
+  v_subject_id text := nullif(trim(p_event->>'subject_id'),'');
+  v_class text := app_private.traffic_class_for_actor(actor);
+begin
+  if p_event is null or jsonb_typeof(p_event) <> 'object' then
+    raise exception using errcode='VS005',message='invalid event';
+  end if;
+
+  if exists (
+    select 1 from jsonb_object_keys(p_event) k
+    where k in (
+      'latitude','longitude','lat','lng','coords','location',
+      'is_test','is_demo','traffic_class','event_source','actor_id','author_id','role'
+    )
+  ) then
+    raise exception using errcode='VS005',message='client event contains forbidden fields';
+  end if;
+
+  if exists (
+    select 1 from jsonb_object_keys(p_event) k
+    where k not in (
+      'type','city_id','session_id','is_qualified','timestamp','duration_ms','zoom',
+      'signal_id','category','area_name','coarse_h3','subject_type','subject_id','filter'
+    )
+  ) then
+    raise exception using errcode='VS005',message='unknown client event fields';
+  end if;
+
+  if v_type not in (
+    'map_opened','map_viewport_changed','map_filter_changed','map_entity_impression','map_entity_opened',
+    'area_selected','signal_impression','signal_opened','join_clicked','go_clicked','share_clicked',
+    'confirmation_submitted','not_there_submitted','report_submitted',
+    'local_post_opened','profile_opened','community_opened','place_opened','area_opened'
+  ) then
+    raise exception using errcode='VS005',message='unsupported client observation';
+  end if;
+
+  if length(v_session) > 64 then
+    raise exception using errcode='VS005',message='invalid session';
+  end if;
+  if not exists(select 1 from public.cities c where c.id=v_city_id and c.active) then
+    raise exception using errcode='VS005',message='invalid city';
+  end if;
+  if p_event->>'signal_id' is not null then
+    v_signal_id := (p_event->>'signal_id')::uuid;
+  end if;
+
+  insert into app_private.analytics_events(
+    event_type,city_id,signal_id,actor_id,session_id,is_qualified,is_demo,is_test,
+    subject_type,subject_id,event_source,traffic_class,metadata
+  ) values(
+    v_type,v_city_id,v_signal_id,actor,v_session,v_qualified,false,(v_class='test'),
+    v_subject_type,v_subject_id,'client_observation',v_class,p_event
+  );
+exception
+  when invalid_text_representation then
+    raise exception using errcode='VS005',message='invalid client observation';
+end;
+$$;
+revoke all on function public.record_client_event(jsonb) from public,anon,authenticated;
+grant execute on function public.record_client_event(jsonb) to anon,authenticated;

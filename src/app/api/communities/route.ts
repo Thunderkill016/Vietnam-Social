@@ -1,8 +1,4 @@
-import {
-  boundsSchema,
-  HCMC_CITY,
-  isKnownFixturePlace,
-} from "@/lib/domain";
+import { boundsSchema, HCMC_CITY, isKnownFixturePlace } from "@/lib/domain";
 import { databaseFailure, failure, ok, readBody } from "@/lib/api";
 import { publicConfig } from "@/lib/env";
 import { requestSupabase } from "@/lib/supabase";
@@ -47,8 +43,8 @@ export async function GET(request: Request) {
   const communities = parsed.data.filter(
     (community) =>
       !community.place_id ||
-      ((config.env !== "production" && config.env !== "staging") ||
-        !isKnownFixturePlace(community.place_id)),
+      (config.env !== "production" && config.env !== "staging") ||
+      !isKnownFixturePlace(community.place_id),
   );
 
   return ok({ mode: "live", communities });

@@ -14,16 +14,16 @@ The goal is to outperform fragmented alternatives on local context, freshness, t
 
 ## Current benchmark map
 
-| Category | Products | What they demonstrate | Implication for Vietnam Social |
-| --- | --- | --- | --- |
-| Place discovery | Google Maps, Foursquare/Swarm | Places are durable anchors for local behavior | Use Places as social anchors; do not rebuild a global POI corpus |
-| Hyperlocal social | Neme, Nextdoor | Geography can organize posts, local identity, and neighborhood discussion | Local relevance must be stronger than a generic follower feed |
-| City/event discovery | CheckEvent, inSAIGON, Discover Saigon | Users want a simpler answer to “what can I do here?” | Discovery must remain legible, fresh, and actionable |
-| Community + IRL | Meetup, Homii | Persistent groups can turn discovery into repeated participation | Community identity and recurring participation matter more than one-off content |
-| Sports communities | Reclub | Vertical products can achieve strong density with specialized community/activity tooling | Vietnam Social must be general-purpose without becoming shallow feature soup |
-| Event conversion | Partiful | Creation, sharing, RSVP, and distribution can form a strong conversion loop | Every discovered object needs a clear next action |
-| Realtime utility | Waze | Freshness, confidence, and community verification can make a map habit-forming | Trust/freshness must be understandable and server-owned |
-| Social-map UX | Snap Map, Zenly-like products | A map can feel alive without resembling a conventional feed | Invest in map legibility/personality without public live-person tracking |
+| Category             | Products                              | What they demonstrate                                                                    | Implication for Vietnam Social                                                  |
+| -------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Place discovery      | Google Maps, Foursquare/Swarm         | Places are durable anchors for local behavior                                            | Use Places as social anchors; do not rebuild a global POI corpus                |
+| Hyperlocal social    | Neme, Nextdoor                        | Geography can organize posts, local identity, and neighborhood discussion                | Local relevance must be stronger than a generic follower feed                   |
+| City/event discovery | CheckEvent, inSAIGON, Discover Saigon | Users want a simpler answer to “what can I do here?”                                     | Discovery must remain legible, fresh, and actionable                            |
+| Community + IRL      | Meetup, Homii                         | Persistent groups can turn discovery into repeated participation                         | Community identity and recurring participation matter more than one-off content |
+| Sports communities   | Reclub                                | Vertical products can achieve strong density with specialized community/activity tooling | Vietnam Social must be general-purpose without becoming shallow feature soup    |
+| Event conversion     | Partiful                              | Creation, sharing, RSVP, and distribution can form a strong conversion loop              | Every discovered object needs a clear next action                               |
+| Realtime utility     | Waze                                  | Freshness, confidence, and community verification can make a map habit-forming           | Trust/freshness must be understandable and server-owned                         |
+| Social-map UX        | Snap Map, Zenly-like products         | A map can feel alive without resembling a conventional feed                              | Invest in map legibility/personality without public live-person tracking        |
 
 ## Vietnamese-market benchmarks
 
@@ -71,14 +71,14 @@ Borrow behaviors and product principles, not visual cloning or proprietary imple
 
 ## Updated product position
 
-| Product | Primary question |
-| --- | --- |
-| Google Maps | What places are here? |
-| Waze | What is happening on the road right now? |
-| Meetup / Reclub | Which groups or activities can I participate in? |
-| Neme / Nextdoor | What are people in this locality discussing? |
-| Event/city guides | What should I do in this city today? |
-| Vietnam Social | **What social life exists in this place, and how can I connect, participate, or contribute?** |
+| Product           | Primary question                                                                              |
+| ----------------- | --------------------------------------------------------------------------------------------- |
+| Google Maps       | What places are here?                                                                         |
+| Waze              | What is happening on the road right now?                                                      |
+| Meetup / Reclub   | Which groups or activities can I participate in?                                              |
+| Neme / Nextdoor   | What are people in this locality discussing?                                                  |
+| Event/city guides | What should I do in this city today?                                                          |
+| Vietnam Social    | **What social life exists in this place, and how can I connect, participate, or contribute?** |
 
 That answer is composed from the five product primitives:
 

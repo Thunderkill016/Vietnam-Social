@@ -1,6 +1,6 @@
 # Vietnam Social Architecture
 
-Status: HCMC foundation, Activities, Local Posts (Phase B), Communities core (Phase C), and Rich Places + Area Following (Phase D) are technically shipped. Deployment and market/retention validation are separate gates. No broad adoption is claimed.
+Status: HCMC foundation, Activities, Local Posts (Phase B), Communities core (Phase C), Rich Places + Area Following (Phase D), and the Phase E1 Unified Social Map/measurement architecture are technically implemented on the E1 branch. Hosted deployment and market/retention validation remain separate gates. No broad adoption is claimed.
 
 ## 1. System shape
 
@@ -137,10 +137,12 @@ Raw report count alone should not become a trivially weaponized permanent-deleti
 
 ### `analytics`
 
-- strongly typed privacy-preserving product events
-- coarse geographic context only
-- explicit real/demo/test separation
-- versioned definitions for investment metrics
+- strongly typed privacy-preserving client observations
+- no raw GPS; coarse geographic context only
+- server-owned traffic classification
+- authoritative social-action facts recorded only after successful database mutations
+- explicit fixture/test exclusion from real evidence
+- versioned investment metrics, beginning with `WMLC_v0`
 
 ### `notifications`
 
@@ -166,7 +168,8 @@ Deferred until required by a validated social slice. When introduced, notificati
 
 - PostgreSQL/PostGIS remains authoritative for persisted domain state and geographic truth.
 - Realtime carries invalidation/update hints, not authoritative business state.
-- Clients never authoritatively compute roles, moderation state, trust, author identity, or location authority.
+- Clients never authoritatively compute roles, moderation state, trust, author identity, location authority, test/demo classification, or successful social-action evidence.
+- Client analytics describe observations; database-confirmed domain mutations are the source for meaningful-action evidence and `WMLC_v0`.
 - H3 is secondary to PostGIS. It may support aggregation, approximation, partitioning, and clustering.
 - The map UI never becomes an authorization boundary.
 
@@ -197,7 +200,7 @@ Raw device GPS remains prohibited.
 
 The first implementation used Activity markers only. PRD v1 requires the map to support multiple social entity types without turning into visual clutter.
 
-A future map entity projection should provide a common display envelope rather than forcing every domain table into one generic object model.
+Phase E1 implements a common application-level map entity projection and bounded `/api/map` boundary rather than forcing every domain table into one generic persistence model.
 
 Conceptual projection:
 
