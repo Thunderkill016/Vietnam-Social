@@ -25,16 +25,19 @@ export async function GET(request: Request) {
 
   const db = requestSupabase(request);
   if (!db) {
-    return ok({
-      invite: {
-        id: "demo-invite",
-        status: "pending",
-        expires_at: new Date(Date.now() + 7 * 86400000).toISOString(),
-        venue_id: "10000000-0000-4000-8000-000000000001",
-        venue_name: "Sân thử nghiệm Phú Nhuận",
-        venue_area: "Phú Nhuận",
-      },
-    });
+    if (token === "demo-token") {
+      return ok({
+        invite: {
+          id: "demo-invite",
+          status: "pending",
+          expires_at: new Date(Date.now() + 7 * 86400000).toISOString(),
+          venue_id: "10000000-0000-4000-8000-000000000001",
+          venue_name: "Sân thử nghiệm Phú Nhuận",
+          venue_area: "Phú Nhuận",
+        },
+      });
+    }
+    return failure("Lời mời không tồn tại hoặc đã hết hạn.", 404);
   }
 
   const { data, error } = await db.rpc("inspect_host_invite", {
