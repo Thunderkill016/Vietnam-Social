@@ -181,9 +181,18 @@ export function CommunityPage({ id }: { id: string }) {
           {community.description || "Cộng đồng địa phương trên Vietnam Social."}
         </p>
         <div className={styles.meta}>
-          <span className={styles.chip}>
-            <MapPin size={14} /> {community.place_name || community.area}
-          </span>
+          {community.place_id ? (
+            <Link
+              href={`/p/${community.place_id}`}
+              className={`${styles.chip} ${styles.link}`}
+            >
+              <MapPin size={14} /> {community.place_name || community.area}
+            </Link>
+          ) : (
+            <span className={styles.chip}>
+              <MapPin size={14} /> {community.area}
+            </span>
+          )}
           <span className={styles.chip}>
             <Users size={14} /> {community.member_count} thành viên
           </span>
@@ -268,6 +277,13 @@ export function CommunityPage({ id }: { id: string }) {
           </Link>
           <h3>Khu vực</h3>
           <p className={styles.muted}>{community.area}</p>
+          {community.place_id && (
+            <p>
+              <Link href={`/p/${community.place_id}`} className={styles.link}>
+                Xem lớp xã hội của {community.place_name || "địa điểm"} →
+              </Link>
+            </p>
+          )}
           <p className={styles.muted}>
             Cộng đồng được neo vào khu vực/địa điểm công cộng, không phải vị trí
             sống trực tiếp của thành viên.

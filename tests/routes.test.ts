@@ -23,6 +23,120 @@ import {
 import { GET as OPS_DASHBOARD } from "../src/app/api/ops/dashboard/route";
 import { POST as RECORD_EVENT } from "../src/app/api/events/route";
 import { requestSupabase } from "../src/lib/supabase";
+import {
+  GET as PLACE_GET,
+  POST as PLACE_FOLLOW,
+} from "../src/app/api/places/[id]/route";
+import { GET as LOCAL_FOLLOWS } from "../src/app/api/follows/local/route";
+
+const placeParams = {
+  params: Promise.resolve({ id: "10000000-0000-4000-8000-000000000401" }),
+};
+it("area follow derives city and area from the approved route Place", async () => {
+  const rpc = vi
+    .fn()
+    .mockResolvedValue({ data: { following: true }, error: null });
+  const query = {
+    select: vi.fn(),
+    eq: vi.fn(),
+    maybeSingle: vi.fn().mockResolvedValue({
+      data: { city_id: "hcm", area: "Quận 1" },
+      error: null,
+    }),
+  };
+  query.select.mockReturnValue(query);
+  query.eq.mockReturnValue(query);
+  const from = vi.fn().mockReturnValue(query);
+  vi.mocked(requestSupabase).mockReturnValue({
+    rpc,
+    from,
+  } as unknown as NonNullable<ReturnType<typeof requestSupabase>>);
+  const response = await PLACE_FOLLOW(
+    new Request("http://localhost", {
+      method: "POST",
+      headers: { Authorization: "Bearer test" },
+      body: JSON.stringify({ target: "area", follow: true }),
+    }),
+    placeParams,
+  );
+  expect(response.status).toBe(200);
+  expect(query.eq).toHaveBeenCalledWith("id", (await placeParams.params).id);
+  expect(query.eq).toHaveBeenCalledWith("enabled", true);
+  expect(rpc).toHaveBeenCalledWith("set_area_follow", {
+    p_city_id: "hcm",
+    p_area: "Quận 1",
+    p_follow: true,
+  });
+});
+it("place reads reject invalid ids and do not invent demo places", async () => {
+  expect(
+    (
+      await PLACE_GET(new Request("http://localhost"), {
+        params: Promise.resolve({ id: "bad" }),
+      })
+    ).status,
+  ).toBe(404);
+  expect(
+    (await PLACE_GET(new Request("http://localhost"), placeParams)).status,
+  ).toBe(404);
+});
+it("local follows require authentication and never accept client GPS", async () => {
+  const rpc = vi.fn();
+  vi.mocked(requestSupabase).mockReturnValue({ rpc } as unknown as NonNullable<
+    ReturnType<typeof requestSupabase>
+  >);
+  expect((await LOCAL_FOLLOWS(new Request("http://localhost"))).status).toBe(
+    401,
+  );
+  expect(
+    (
+      await PLACE_FOLLOW(
+        new Request("http://localhost", { method: "POST" }),
+        placeParams,
+      )
+    ).status,
+  ).toBe(401);
+  for (const target of ["place", "area"]) {
+    expect(
+      (
+        await PLACE_FOLLOW(
+          new Request("http://localhost", {
+            method: "POST",
+            headers: { Authorization: "Bearer test" },
+            body: JSON.stringify({ target, follow: true, latitude: 10.78 }),
+          }),
+          placeParams,
+        )
+      ).status,
+    ).toBe(400);
+  }
+  expect(rpc).not.toHaveBeenCalled();
+});
+it("place mutation forwards only the route id and boolean intent", async () => {
+  const rpc = vi.fn().mockResolvedValue({
+    data: { following: true, follower_count: 1 },
+    error: null,
+  });
+  vi.mocked(requestSupabase).mockReturnValue({ rpc } as unknown as NonNullable<
+    ReturnType<typeof requestSupabase>
+  >);
+  expect(
+    (
+      await PLACE_FOLLOW(
+        new Request("http://localhost", {
+          method: "POST",
+          headers: { Authorization: "Bearer test" },
+          body: JSON.stringify({ target: "place", follow: true }),
+        }),
+        placeParams,
+      )
+    ).status,
+  ).toBe(200);
+  expect(rpc).toHaveBeenCalledWith("set_place_follow", {
+    p_place_id: (await placeParams.params).id,
+    p_follow: true,
+  });
+});
 
 beforeEach(() => vi.mocked(requestSupabase).mockReturnValue(null));
 

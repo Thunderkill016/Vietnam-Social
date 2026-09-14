@@ -9,6 +9,8 @@ export default defineConfig([
       "src/components/social-explore.tsx",
       "src/components/public-profile.tsx",
       "src/components/community-page.tsx",
+      "src/components/place-page.tsx",
+      "src/components/following-page.tsx",
     ],
     rules: {
       // These components intentionally hydrate external Supabase/API state from effects.

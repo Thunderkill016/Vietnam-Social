@@ -175,12 +175,12 @@ Operations priority must not be encoded as a permanent district-only product bou
 
 ## Current implementation status
 
-The repository currently implements the **Activity** primitive most deeply: expiring Signals, approved places, map discovery, join/go/confirm, moderation, host supply tools, and privacy-preserving analytics.
+The repository implements Activities, public profiles/person follow, Local Posts, Communities core, and Rich Places + Area Following. Activity expiry, trust, moderation and privacy remain intact.
 
-That implementation remains useful, but it is **one module of Vietnam Social, not the definition of the whole product**.
+The shipped local relationship loop is:
 
-The next social vertical slice should prove the broader network model:
+`Map/social object → Place → inspect Posts/Activities/Communities → follow Place or coarse Area → Following → return`
 
-`Create Local Post → discover it on the map → open → react/comment → open author profile → follow`
+The map offers contextual approved Place links rather than a permanent business directory. Area discovery reuses existing social primitives in bounded lists. No live user location is inferred from a follow.
 
-Communities and richer place social pages should build on the same map-native foundation after that slice is measurable and safe.
+Phases B, C core and D are technically shipped. Production deployment/migration is a separate verification gate. Real-world market validation and retention validation have NOT passed merely because the code shipped. Phase E is not started automatically.

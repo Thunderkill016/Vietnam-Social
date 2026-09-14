@@ -20,7 +20,7 @@ See [PRODUCT.md](PRODUCT.md) and the canonical [PRD v1](prd-v1.md) before making
 
 ## Current implementation status
 
-The repository implements the **Activities** primitive deeply and now also ships the first two map-native social layers: **Local Posts** and **Communities**. The existing Activity system remains one module of the broader social network.
+The repository implements the **Activities** primitive deeply and now also ships the map-native social layers: **Local Posts**, **Communities**, and **Rich Places + Area Following**. The existing Activity system remains one module of the broader social network.
 
 Today the shipped foundation includes:
 
@@ -36,17 +36,20 @@ Today the shipped foundation includes:
 - reactions, comments, reports, public profiles, and person follow graph
 - map-native Communities with create, join/leave, member posting, and moderation
 - unified map discovery for Local Posts and Communities
+- rich Place pages combining existing Posts, discoverable Activities, and Communities
+- explicit Place/Area follows, private `/following` collection, and bounded `/a` area discovery
+- contextual approved Place links alongside the social map, without a permanent business-pin layer
 - privacy-preserving analytics
 
 Planned but **not yet shipped as complete social modules**:
 
-- richer social Place pages
-- place/area following
 - social notifications
 - richer Community administration
 - end-to-end Activity ↔ Community UX beyond the current optional database linkage
 
-The next product phase defined by PRD v1 is **Rich Places and area following**, while the shipped Local Post and Community loops are validated with real users.
+Phases B (Local Posts), C (Communities core), and D (Rich Places + Area Following) are technically shipped. The Phase D loop is `map/social object → /p/[id] → follow Place/Area → /following → Place or /a area context`.
+
+**Real-world market validation and retention validation have NOT passed merely because the code shipped.** Phase E is not started automatically. Production rollout is a separate gate: apply migration `202609140008_rich_places_area_following.sql` only after exact-head and post-merge CI succeed, and verify its canonical version in the target project.
 
 ## Product principles
 

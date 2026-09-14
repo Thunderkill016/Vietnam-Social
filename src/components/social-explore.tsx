@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
   Activity,
@@ -79,6 +80,7 @@ const DEFAULT_BOUNDS: Bounds = {
 };
 
 export function SocialExplore() {
+  const router = useRouter();
   const [city, setCity] = useState<CityConfig>(HCMC_CITY);
   const [places, setPlaces] = useState<Place[]>([]);
   const [posts, setPosts] = useState<LocalPost[]>([]);
@@ -350,7 +352,7 @@ export function SocialExplore() {
       setCommunityName("");
       setCommunityDescription("");
       await loadSocial();
-      window.location.assign(`/c/${result.id}`);
+      router.push(`/c/${result.id}`);
     } catch (e) {
       setNotice((e as Error).message);
     } finally {
@@ -373,6 +375,9 @@ export function SocialExplore() {
           </Link>
           <Link href="/activities" className={styles.navLink}>
             <Activity size={16} /> Hoạt động
+          </Link>
+          <Link href="/following" className={styles.navLink}>
+            Đang theo dõi
           </Link>
           {viewer ? (
             <>
@@ -456,9 +461,7 @@ export function SocialExplore() {
             communities={communities}
             selectedId={selected?.id}
             onSelect={(post) => void openPost(post)}
-            onSelectCommunity={(community) =>
-              window.location.assign(`/c/${community.id}`)
-            }
+            onSelectCommunity={(community) => router.push(`/c/${community.id}`)}
             onBounds={setBounds}
             city={city}
             initialBounds={bounds}
@@ -475,6 +478,38 @@ export function SocialExplore() {
             </div>
             {loading && <LoaderCircle className={styles.spin} size={18} />}
           </div>
+
+          {mode === "live" && (
+            <section aria-label="Địa điểm trong vùng bản đồ">
+              <strong>Địa điểm công cộng trong vùng</strong>
+              {places
+                .filter(
+                  (place) =>
+                    place.city_id === city.id &&
+                    place.longitude >= bounds.west &&
+                    place.longitude <= bounds.east &&
+                    place.latitude >= bounds.south &&
+                    place.latitude <= bounds.north,
+                )
+                // Keep map context readable; the approved catalog is not a permanent pin layer.
+                .sort(
+                  (a, b) =>
+                    a.name.localeCompare(b.name, "vi") ||
+                    a.id.localeCompare(b.id),
+                )
+                .slice(0, 12)
+                .map((place) => (
+                  <Link
+                    className={styles.postCard}
+                    key={place.id}
+                    href={`/p/${place.id}`}
+                  >
+                    <MapPin size={14} /> {place.name} · {place.area}
+                  </Link>
+                ))}
+              <small>Tối đa 12 địa điểm theo vùng bản đồ.</small>
+            </section>
+          )}
 
           {communities.length > 0 && (
             <div>
@@ -803,6 +838,14 @@ export function SocialExplore() {
                 <Dialog.Description className={styles.modalDescription}>
                   Bài địa phương tại {selected.area}
                 </Dialog.Description>
+                {selected.place_id && mode === "live" && (
+                  <Link
+                    className={styles.navLink}
+                    href={`/p/${selected.place_id}`}
+                  >
+                    <MapPin size={15} /> Xem địa điểm {selected.place_name}
+                  </Link>
+                )}
                 {selected.community && (
                   <Link
                     className={styles.navLink}
