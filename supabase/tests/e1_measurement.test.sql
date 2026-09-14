@@ -33,10 +33,14 @@ select is(
   'fixture',
   'renaming a fixture cannot change provenance'
 );
+select ok(
+  app_private.project_place_social('10000000-0000-4000-8000-000000000001') is not null,
+  'fixture Place remains readable for deterministic local and CI flows'
+);
 select is(
-  app_private.project_place_social('10000000-0000-4000-8000-000000000001'),
-  null::jsonb,
-  'fixture Place cannot appear as a production Social Place'
+  app_private.project_place_social('10000000-0000-4000-8000-000000000001')->>'viewer_follows',
+  'false',
+  'fixture projection never fabricates follow state'
 );
 
 insert into public.places(id,city_id,name,area,longitude,latitude,h3_parent,enabled)
@@ -94,8 +98,8 @@ select throws_ok(
   'browser cannot manufacture a successful social action event'
 );
 select lives_ok(
-  $$select public.record_client_event('{"type":"map_opened","city_id":"hcm","session_id":"e1-anon-observation"}'::jsonb)$$,
-  'anonymous map observation remains valid telemetry'
+  $$select public.record_client_event('{"type":"map_opened","city_id":"hcm","session_id":"e1-anon-observation","zoom":13}'::jsonb)$$,
+  'legacy map zoom remains an allowed observation field'
 );
 reset role;
 select is(
