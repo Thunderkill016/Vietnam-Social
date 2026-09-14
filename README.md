@@ -20,7 +20,7 @@ See [PRODUCT.md](PRODUCT.md) and the canonical [PRD v1](prd-v1.md) before making
 
 ## Current implementation status
 
-The repository currently implements the **Activities** primitive most deeply. The existing Activity system is not being discarded; it becomes one module of the broader social network.
+The repository implements the **Activities** primitive deeply and now also ships the first two map-native social layers: **Local Posts** and **Communities**. The existing Activity system remains one module of the broader social network.
 
 Today the shipped foundation includes:
 
@@ -32,22 +32,21 @@ Today the shipped foundation includes:
 - shareable Activity routes
 - host onboarding and venue authorization
 - activity templates and operator supply tools
+- Local Posts anchored to safe areas or public places
+- reactions, comments, reports, public profiles, and person follow graph
+- map-native Communities with create, join/leave, member posting, and moderation
+- unified map discovery for Local Posts and Communities
 - privacy-preserving analytics
 
 Planned but **not yet shipped as complete social modules**:
 
-- Local Posts
-- comments/reactions
-- richer public social profiles
-- person follow graph
-- Communities
 - richer social Place pages
-- unified multi-entity map layers
+- place/area following
 - social notifications
+- richer Community administration
+- end-to-end Activity ↔ Community UX beyond the current optional database linkage
 
-The next social vertical slice defined by PRD v1 is:
-
-`Create Local Post → discover on map → open → react/comment → profile → follow`
+The next product phase defined by PRD v1 is **Rich Places and area following**, while the shipped Local Post and Community loops are validated with real users.
 
 ## Product principles
 
@@ -147,7 +146,7 @@ For a fresh **disposable** local test database, `npm run db:reset` destroys its 
 - Realtime is an invalidation/update mechanism; PostgreSQL remains source of truth.
 - H3 remains secondary to PostGIS for geographic truth.
 - The existing Activity discovery window, expiry, confidence, moderation, and venue protections stay intact until explicitly revised.
-- Future Local Posts must attach to a safe public place or appropriately coarse area; they must not expose a person's precise live position.
+- Local Posts and Communities attach to approved public places or server-derived safe areas; they must not expose a person's precise live position.
 
 ## Product documents
 
