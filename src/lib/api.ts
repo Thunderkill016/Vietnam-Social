@@ -1,14 +1,30 @@
 import { NextResponse } from "next/server";
-export function failure(message: string, status = 400) {
+import { logError, logWarn } from "./logger";
+
+export function failure(
+  message: string,
+  status = 400,
+  context?: Record<string, unknown>,
+) {
+  if (status >= 500) {
+    logError(`API Server Error [${status}]: ${message}`, undefined, context);
+  } else if (status >= 400) {
+    logWarn(`API Client Failure [${status}]: ${message}`, context);
+  }
   return NextResponse.json(
     { error: message },
     { status, headers: { "Cache-Control": "no-store" } },
   );
 }
+
 export function ok(data: unknown) {
   return NextResponse.json(data, { headers: { "Cache-Control": "no-store" } });
 }
-export function databaseFailure(error: { code: string; message: string }) {
+
+export function databaseFailure(
+  error: { code: string; message: string },
+  context?: Record<string, unknown>,
+) {
   const messages: Record<string, string> = {
     VS001: "Bạn cần đăng nhập để thực hiện thao tác này.",
     VS002: "Tài khoản chưa có quyền thực hiện thao tác này.",
@@ -17,8 +33,8 @@ export function databaseFailure(error: { code: string; message: string }) {
     VS005: "Thông tin hoạt động không hợp lệ. Kiểm tra địa điểm và thời gian.",
     VS006: "Bạn thao tác quá nhanh. Hãy thử lại sau.",
   };
-  return failure(
-    messages[error.code] || "Chưa thể lưu thay đổi. Vui lòng thử lại.",
+
+  const status =
     error.code === "VS001"
       ? 401
       : error.code === "VS002"
@@ -27,9 +43,15 @@ export function databaseFailure(error: { code: string; message: string }) {
           ? 404
           : error.code === "VS006"
             ? 429
-            : 400,
+            : 400;
+
+  return failure(
+    messages[error.code] || "Chưa thể lưu thay đổi. Vui lòng thử lại.",
+    status,
+    { dbErrorCode: error.code, dbErrorMessage: error.message, ...context },
   );
 }
+
 export async function readBody(request: Request) {
   // Bound JSON bodies before parsing; activity descriptions are capped at 600 characters.
   const maxBodyBytes = 8192;

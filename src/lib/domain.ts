@@ -7,13 +7,59 @@ export const CATEGORIES = {
   community: { label: "Gặp gỡ", color: "#9be5d5" },
 } as const;
 export type Category = keyof typeof CATEGORIES;
-export const PILOT = {
-  west: 106.62,
-  south: 10.785,
-  east: 106.705,
-  north: 10.855,
+
+/**
+ * Task 002: City Domain Model.
+ * Supports Ho Chi Minh City as first-class city, extensible to Hanoi, Da Nang, etc.
+ * PostGIS is the geographic authority. Operational bounds define the technical coverage area.
+ */
+export const cityConfigSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  name: z.string(),
+  country_code: z.string().default("VN"),
+  timezone: z.string().default("Asia/Ho_Chi_Minh"),
+  default_center: z.tuple([z.number(), z.number()]),
+  default_zoom: z.number().default(13),
+  active: z.boolean().default(true),
+  launch_state: z.enum(["pilot", "live", "inactive"]).default("live"),
+  operational_bounds: z.object({
+    west: z.number(),
+    south: z.number(),
+    east: z.number(),
+    north: z.number(),
+  }),
+});
+export type CityConfig = z.infer<typeof cityConfigSchema>;
+
+export const HCMC_CITY: CityConfig = {
+  id: "hcm",
+  slug: "ho-chi-minh",
+  name: "TP. Hồ Chí Minh",
+  country_code: "VN",
+  timezone: "Asia/Ho_Chi_Minh",
+  default_center: [106.675, 10.815], // Central urban corridor of HCMC
+  default_zoom: 13,
+  active: true,
+  launch_state: "live",
+  // Simplified operational boundary covering HCMC mainland core, suburbs, and Can Gio
+  operational_bounds: {
+    west: 106.35,
+    south: 10.35,
+    east: 107.05,
+    north: 11.2,
+  },
 };
-export const DEFAULT_CENTER: [number, number] = [106.666, 10.817];
+
+export const SUPPORTED_CITIES: Record<string, CityConfig> = {
+  hcm: HCMC_CITY,
+};
+
+export const DEFAULT_CITY = HCMC_CITY;
+export const DEFAULT_CENTER: [number, number] = HCMC_CITY.default_center;
+export const HCMC_BOUNDS = HCMC_CITY.operational_bounds;
+export const PILOT = HCMC_BOUNDS; // Compatibility alias for previous callers
+
 export const MAX_RESULTS = 100;
 // A six-hour discovery window and 24-hour lifetime come from PRD sections 2/10.
 export const DISCOVERY_HOURS = 6;
@@ -26,6 +72,7 @@ export const CONFIDENCE_LABELS = {
   verified: "Đã xác minh",
   questionable: "Cần kiểm tra",
 } as const;
+
 export const signalSchema = z.object({
   id: z.uuid(),
   title: z.string(),
@@ -46,25 +93,30 @@ export const signalSchema = z.object({
   is_demo: z.boolean().optional(),
 });
 export type Signal = z.infer<typeof signalSchema>;
+
 export type Place = {
   id: string;
+  city_id?: string;
   name: string;
   area: string;
   longitude: number;
   latitude: number;
   h3_parent: string;
 };
+
 export type Viewer = {
   id: string;
   role: "member" | "host" | "moderator";
   display_name: string;
 };
+
 export const boundsSchema = z
   .object({
     west: z.coerce.number().min(-180).max(180),
     south: z.coerce.number().min(-90).max(90),
     east: z.coerce.number().min(-180).max(180),
     north: z.coerce.number().min(-90).max(90),
+    city_id: z.string().optional(),
   })
   .refine(
     (b) =>
@@ -75,6 +127,7 @@ export const boundsSchema = z
     "Vùng xem quá rộng hoặc không hợp lệ.",
   );
 export type Bounds = z.infer<typeof boundsSchema>;
+
 export const createSignalSchema = z
   .object({
     request_id: z.uuid(),
@@ -96,6 +149,7 @@ export const createSignalSchema = z
         path: ["expires_at"],
       });
   });
+
 export const actionSchema = z
   .object({
     action: z.enum([
@@ -110,6 +164,16 @@ export const actionSchema = z
     reason: z.string().trim().max(300).optional(),
   })
   .strict();
+
+export function isWithinCity(
+  coords: [number, number],
+  city: CityConfig = HCMC_CITY,
+): boolean {
+  const [lng, lat] = coords;
+  const { west, south, east, north } = city.operational_bounds;
+  return lng >= west && lng <= east && lat >= south && lat <= north;
+}
+
 export function filterSignals(
   signals: Signal[],
   category: string,
@@ -128,6 +192,7 @@ export function filterSignals(
       normalize(`${s.title} ${s.place_name} ${s.area}`).includes(search),
   );
 }
+
 export function timeLabel(iso: string) {
   return new Intl.DateTimeFormat("vi-VN", {
     hour: "2-digit",
@@ -135,6 +200,7 @@ export function timeLabel(iso: string) {
     timeZone: "Asia/Ho_Chi_Minh",
   }).format(new Date(iso));
 }
+
 export function distanceKm(from: [number, number], to: [number, number]) {
   const rad = Math.PI / 180;
   const earthRadiusKm = 6371;

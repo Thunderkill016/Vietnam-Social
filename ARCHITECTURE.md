@@ -1,6 +1,6 @@
 # Vietnam Social Architecture
 
-Status: first local implementation for MVP v0.1; no production deployment.
+Status: Ho Chi Minh City production foundation (Task 002); no full-city user adoption claimed.
 
 ## System shape
 
@@ -18,13 +18,16 @@ flowchart TD
 
 ## Modules
 
-- `map`: viewport, camera, clusters, Signal markers
-- `signals`: lifecycle, creation, retrieval, expiry
+- `city`: city domain model, PostGIS operational boundaries, launch state
+- `map`: viewport, camera, clusters, Signal markers, honest empty-area UX
+- `signals`: lifecycle, creation, retrieval, expiry, city-scoped queries
 - `trust`: confirmation, rejection, confidence calculation
 - `places`: venue anchors; not a competing place database
 - `auth`: session and authorization
 - `moderation`: reports, resolution, rate limits
-- `analytics`: privacy-preserving product events
+- `analytics`: 12 strongly typed, privacy-preserving product events (zero raw GPS coordinates)
+- `logger`: structured observability with automatic redaction of secrets, tokens, credentials, and coordinates
+- `env`: runtime environment validation (`demo`, `local`, `staging`, `production`) with fail-fast security checks
 - `geo`: PostGIS queries, H3 conversion, location approximation
 
 Modules may share one deployable and one database, but domain logic must not be duplicated between UI, API routes, and database functions.
@@ -92,5 +95,16 @@ Do not build chat, follower graphs, recommendation ML, merchant billing, cross-c
 The first slice accepts public venue IDs only. Location and H3 partitions come from the operator-owned venue record. PostGIS validates the pilot envelope and viewport; no H3 match can substitute for a geographic match. The pilot envelope is a proposed operational boundary, not a claim about administrative district borders.
 
 The SQL projection computes confidence on read from unique current observations. Mutation audit events preserve reason codes. Natural expiry is enforced by query predicates, with visible-browser refetch at most every 15 seconds and immediate invalidation on writes. Realtime messages carry only an ID; no full row broadcasting is used.
+
+## Task 002 — HCMC production foundation details
+
+`supabase/migrations/202609140002_hcmc_foundation.sql` introduces:
+
+- Extended `public.cities` schema: `slug`, `country_code`, `timezone`, `default_longitude`, `default_latitude`, `default_zoom`, `active`, `launch_state`, and `operational_boundary` (`geometry(Polygon, 4326)`).
+- HCMC operational boundary bounding box `[106.35, 10.35, 107.05, 11.20]` enforced by PostGIS in `publish_signal`.
+- `discover_signals` scoped optionally to `city_id` and bounded viewport.
+- Client analytics contract: `src/lib/analytics.ts` defines 12 typed events and enforces an epistemic privacy invariant that strictly rejects raw GPS coordinates (`latitude`, `longitude`, `coords`).
+- Structured logger: `src/lib/logger.ts` outputs machine-readable JSON in production with automatic recursive redaction of credentials, bearer tokens, service-role keys, and coordinate keys.
+- Environment security: `src/lib/env.ts` enforces fail-fast validation across `demo`, `local`, `staging`, and `production`. In production/staging, it guarantees HTTPS endpoints, bans localhost, and fails closed if any service-role or secret key is detected.
 
 Reference implementations used: [Next.js App Router](https://nextjs.org/docs/app/getting-started), [Supabase PostGIS](https://supabase.com/docs/guides/database/extensions/postgis), [database Broadcast](https://supabase.com/docs/guides/realtime/broadcast), and [MapLibre map initialization](https://maplibre.org/maplibre-gl-js/docs/examples/display-a-map/).

@@ -34,19 +34,22 @@ import {
 import {
   CATEGORIES,
   CONFIDENCE_LABELS,
-  DEFAULT_CENTER,
-  PILOT,
+  HCMC_CITY,
   REFRESH_MS,
+  boundsSchema,
   distanceKm,
   filterSignals,
+  isWithinCity,
   timeLabel,
   type Bounds,
   type Category,
+  type CityConfig,
   type Place,
   type Signal,
   type Viewer,
 } from "@/lib/domain";
 import { browserSupabase } from "@/lib/supabase";
+import { trackEvent } from "@/lib/analytics";
 const ActivityMap = dynamic(
   () => import("./activity-map").then((m) => m.ActivityMap),
   {
@@ -133,6 +136,7 @@ function Modal({
   );
 }
 export function Explore({ initialId }: { initialId?: string }) {
+  const [city, setCity] = useState<CityConfig>(HCMC_CITY);
   const [signals, setSignals] = useState<Signal[]>([]),
     [places, setPlaces] = useState<Place[]>([]);
   const [mode, setMode] = useState<"demo" | "live">("demo"),
@@ -142,7 +146,34 @@ export function Explore({ initialId }: { initialId?: string }) {
     [notice, setNotice] = useState("");
   const [category, setCategory] = useState("all"),
     [query, setQuery] = useState("");
-  const [bounds, setBounds] = useState<Bounds>(PILOT),
+  const [bounds, setBounds] = useState<Bounds>(() => {
+      if (typeof window !== "undefined" && window.location.search) {
+        const params = new URLSearchParams(window.location.search);
+        const w = params.get("west"),
+          s = params.get("south"),
+          e = params.get("east"),
+          n = params.get("north");
+        if (w && s && e && n) {
+          const parsed = boundsSchema.safeParse({
+            west: Number(w),
+            south: Number(s),
+            east: Number(e),
+            north: Number(n),
+            city_id: params.get("city_id") ?? HCMC_CITY.id,
+          });
+          if (parsed.success) {
+            return parsed.data;
+          }
+        }
+      }
+      return {
+        west: 106.62,
+        south: 10.77,
+        east: 106.73,
+        north: 10.86,
+        city_id: HCMC_CITY.id,
+      };
+    }),
     [location, setLocation] = useState<[number, number] | null>(null);
   const [selected, setSelected] = useState<Signal | null>(null),
     [myState, setMyState] = useState<SignalState | null>(null);
@@ -209,10 +240,13 @@ export function Explore({ initialId }: { initialId?: string }) {
     }
   }, [bounds]);
   useEffect(() => {
-    void api<{ mode: "demo" | "live"; places: Place[] }>("/api/bootstrap")
+    void api<{ mode: "demo" | "live"; places: Place[]; city?: CityConfig }>(
+      "/api/bootstrap",
+    )
       .then((data) => {
         setMode(data.mode);
         setPlaces(data.places);
+        if (data.city) setCity(data.city);
         setReady(true);
       })
       .catch((e) => setError(e.message));
@@ -249,25 +283,34 @@ export function Explore({ initialId }: { initialId?: string }) {
       document.removeEventListener("visibilitychange", refresh);
     };
   }, [load]);
-  const openSignal = useCallback(async (signal: Signal) => {
-    const currentDetail = ++detailVersion.current;
-    selectedRef.current = signal;
-    setNotice("");
-    setMyState(null);
-    setSelected(signal);
-    try {
-      const result = await api<{ signal: Signal; state: SignalState | null }>(
-        `/api/signals/${signal.id}`,
-      );
-      if (currentDetail !== detailVersion.current) return;
-      setSelected(result.signal);
-      setMyState(result.state ?? null);
-    } catch (e) {
-      if (currentDetail !== detailVersion.current) return;
-      setSelected(null);
-      setNotice((e as Error).message);
-    }
-  }, []);
+  const openSignal = useCallback(
+    async (signal: Signal) => {
+      const currentDetail = ++detailVersion.current;
+      selectedRef.current = signal;
+      setNotice("");
+      setMyState(null);
+      setSelected(signal);
+      trackEvent({
+        type: "signal_opened",
+        signal_id: signal.id,
+        city_id: city.id,
+        category: signal.category,
+      });
+      try {
+        const result = await api<{ signal: Signal; state: SignalState | null }>(
+          `/api/signals/${signal.id}`,
+        );
+        if (currentDetail !== detailVersion.current) return;
+        setSelected(result.signal);
+        setMyState(result.state ?? null);
+      } catch (e) {
+        if (currentDetail !== detailVersion.current) return;
+        setSelected(null);
+        setNotice((e as Error).message);
+      }
+    },
+    [city.id],
+  );
   useEffect(() => {
     if (!initialId) return;
     void api<{ signal: Signal; state: SignalState | null }>(
@@ -320,19 +363,19 @@ export function Explore({ initialId }: { initialId?: string }) {
     }
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
-        if (
-          coords.longitude < PILOT.west ||
-          coords.longitude > PILOT.east ||
-          coords.latitude < PILOT.south ||
-          coords.latitude > PILOT.north
-        ) {
+        if (!isWithinCity([coords.longitude, coords.latitude], city)) {
           setNotice(
-            "Bạn đang ngoài khu vực thử nghiệm. Bản đồ vẫn hiển thị Gò Vấp, Phú Nhuận và Tân Bình.",
+            `Vị trí của bạn nằm ngoài ${city.name}. Bản đồ đang hiển thị khu vực ${city.name}.`,
           );
           return;
         }
         setLocation([coords.longitude, coords.latitude]);
         setSort("distance");
+        trackEvent({
+          type: "area_selected",
+          city_id: city.id,
+          area_name: "current_user_location",
+        });
       },
       () =>
         setNotice(
@@ -354,6 +397,38 @@ export function Explore({ initialId }: { initialId?: string }) {
         method: "POST",
         body: JSON.stringify({ action, reason }),
       });
+      if (action === "join") {
+        trackEvent({
+          type: "join_clicked",
+          signal_id: selected.id,
+          city_id: city.id,
+        });
+      } else if (action === "go") {
+        trackEvent({
+          type: "go_clicked",
+          signal_id: selected.id,
+          city_id: city.id,
+        });
+      } else if (action === "confirm") {
+        trackEvent({
+          type: "confirmation_submitted",
+          signal_id: selected.id,
+          city_id: city.id,
+        });
+      } else if (action === "not_there") {
+        trackEvent({
+          type: "not_there_submitted",
+          signal_id: selected.id,
+          city_id: city.id,
+        });
+      } else if (action === "report") {
+        trackEvent({
+          type: "report_submitted",
+          signal_id: selected.id,
+          city_id: city.id,
+          reason_code: reason,
+        });
+      }
       setNotice(
         action === "report"
           ? "Đã gửi báo cáo cho người kiểm duyệt."
@@ -370,8 +445,8 @@ export function Explore({ initialId }: { initialId?: string }) {
   };
   const filtered = filterSignals(signals, category, query).sort((a, b) =>
     sort === "distance"
-      ? distanceKm(location ?? DEFAULT_CENTER, [a.longitude, a.latitude]) -
-        distanceKm(location ?? DEFAULT_CENTER, [b.longitude, b.latitude])
+      ? distanceKm(location ?? city.default_center, [a.longitude, a.latitude]) -
+        distanceKm(location ?? city.default_center, [b.longitude, b.latitude])
       : Date.parse(a.starts_at) - Date.parse(b.starts_at),
   );
   return (
@@ -395,7 +470,7 @@ export function Explore({ initialId }: { initialId?: string }) {
         </Link>
         <nav aria-label="Điều hướng chính">
           <span className="nav-active">Khám phá</span>
-          <span className="pilot-badge">BẢN THỬ NGHIỆM</span>
+          <span className="pilot-badge">{city.name}</span>
         </nav>
         <div className="header-actions">
           {viewer?.role === "moderator" && (
@@ -546,21 +621,66 @@ export function Explore({ initialId }: { initialId?: string }) {
             {!error && !loading && filtered.length === 0 && (
               <div className="empty-state">
                 <MapPin />
-                <h3>Chưa có cuộc hẹn phù hợp</h3>
-                <p>
-                  Thử loại hoạt động khác hoặc di chuyển bản đồ. Hoạt động đã
-                  hết hạn sẽ tự ẩn.
-                </p>
-                <button
-                  className="quiet-button"
-                  onClick={() => {
-                    setCategory("all");
-                    setQuery("");
-                    setBounds(PILOT);
-                  }}
-                >
-                  Xem toàn khu vực
-                </button>
+                {signals.length === 0 ? (
+                  <>
+                    <h3>Chưa có hoạt động đang diễn ra trong khu vực này.</h3>
+                    <p>
+                      Vietnam Social chỉ hiển thị các hoạt động thực tế có điểm
+                      hẹn trong vài giờ tới. Bạn có thể di chuyển bản đồ sang
+                      khu vực lân cận hoặc trở về trung tâm {city.name}.
+                    </p>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "0.5rem",
+                        flexWrap: "wrap",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <button
+                        className="quiet-button"
+                        onClick={() => {
+                          setCategory("all");
+                          setQuery("");
+                          setBounds({
+                            west: city.default_center[0] - 0.03,
+                            south: city.default_center[1] - 0.03,
+                            east: city.default_center[0] + 0.03,
+                            north: city.default_center[1] + 0.03,
+                            city_id: city.id,
+                          });
+                          setLocation(city.default_center);
+                        }}
+                      >
+                        Về trung tâm {city.name}
+                      </button>
+                      {viewer &&
+                        (viewer.role === "host" ||
+                          viewer.role === "moderator") && (
+                          <button
+                            className="dark-button"
+                            onClick={() => setCreateOpen(true)}
+                          >
+                            Tạo hoạt động mới
+                          </button>
+                        )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h3>Chưa có cuộc hẹn phù hợp</h3>
+                    <p>Thử loại hoạt động khác hoặc xóa từ khóa tìm kiếm.</p>
+                    <button
+                      className="quiet-button"
+                      onClick={() => {
+                        setCategory("all");
+                        setQuery("");
+                      }}
+                    >
+                      Xóa bộ lọc
+                    </button>
+                  </>
+                )}
               </div>
             )}
             {filtered.map((signal) => {
@@ -636,6 +756,8 @@ export function Explore({ initialId }: { initialId?: string }) {
             onSelect={(signal) => void openSignal(signal)}
             onBounds={setBounds}
             location={location}
+            city={city}
+            initialBounds={bounds}
           />
           <button className="locate-map" onClick={locate}>
             <LocateFixed size={18} /> Vị trí của tôi
@@ -807,6 +929,11 @@ export function Explore({ initialId }: { initialId?: string }) {
               <button
                 onClick={async () => {
                   try {
+                    trackEvent({
+                      type: "share_clicked",
+                      signal_id: selected.id,
+                      city_id: city.id,
+                    });
                     await navigator.clipboard.writeText(
                       `${window.location.origin}/s/${selected.id}`,
                     );
