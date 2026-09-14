@@ -19,7 +19,7 @@ test("browse, search, inspect details, share and refuse fake participation", asy
   await expect(
     page.getByText("Địa điểm và hoạt động là minh họa", { exact: false }),
   ).toBeVisible();
-  await expect(page.getByText("TP. Hồ Chí Minh")).toBeVisible();
+  await expect(page.getByText("TP. Hồ Chí Minh").first()).toBeVisible();
   await page
     .getByRole("textbox", { name: "Tìm hoạt động hoặc địa điểm" })
     .fill("cau long");

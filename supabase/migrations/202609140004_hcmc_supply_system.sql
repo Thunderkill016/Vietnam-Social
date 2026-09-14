@@ -828,7 +828,32 @@ begin
   );
 end; $$;
 
--- 20. Permissions & Default Privileges
+-- 20. Get Authorized Venues for Current Viewer
+create or replace function public.get_host_venues() returns jsonb language plpgsql stable security definer set search_path='' as $$
+declare
+  actor uuid := auth.uid();
+  v_role text;
+  v_places jsonb;
+begin
+  if actor is null then
+    return '[]'::jsonb;
+  end if;
+  select role into v_role from app_private.profiles where id=actor;
+  if v_role = 'moderator' then
+    select coalesce(jsonb_agg(id), '[]'::jsonb) into v_places from public.places where enabled;
+    return v_places;
+  elsif v_role = 'host' then
+    select coalesce(jsonb_agg(m.place_id), '[]'::jsonb) into v_places
+    from app_private.host_venue_memberships m
+    join public.places p on p.id=m.place_id
+    where m.host_id=actor and m.status='active' and p.enabled;
+    return v_places;
+  else
+    return '[]'::jsonb;
+  end if;
+end; $$;
+
+-- 21. Permissions & Default Privileges
 revoke all on function public.create_host_invite(jsonb),
   public.inspect_host_invite(text),
   public.accept_host_invite(text),
@@ -840,7 +865,8 @@ revoke all on function public.create_host_invite(jsonb),
   public.revoke_host_venue(uuid,uuid),
   public.manage_template(text,jsonb),
   public.record_client_event(jsonb),
-  public.supply_dashboard_metrics()
+  public.supply_dashboard_metrics(),
+  public.get_host_venues()
 from public, anon, authenticated;
 
 grant execute on function public.inspect_host_invite(text) to anon, authenticated;
@@ -848,7 +874,8 @@ grant execute on function public.record_client_event(jsonb) to anon, authenticat
 grant execute on function public.accept_host_invite(text),
   public.complete_host_onboarding(jsonb),
   public.suggest_venue(jsonb),
-  public.manage_template(text,jsonb)
+  public.manage_template(text,jsonb),
+  public.get_host_venues()
 to authenticated;
 
 grant execute on function public.create_host_invite(jsonb),

@@ -38,13 +38,9 @@ export async function GET(request: Request) {
       // Moderator has access to all venues
       authorizedIds = (places || []).map((p) => p.id);
     } else if (profile?.role === "host") {
-      // Host has access to their memberships
-      const { data: memberships } = await db
-        .from("host_venue_memberships")
-        .select("place_id")
-        .eq("host_id", profile.id)
-        .eq("status", "active");
-      authorizedIds = (memberships || []).map((m) => m.place_id);
+      // Host has access to their memberships via secure RPC
+      const { data: hostVenues } = await db.rpc("get_host_venues");
+      authorizedIds = Array.isArray(hostVenues) ? hostVenues : [];
     }
   }
 

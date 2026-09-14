@@ -1496,7 +1496,7 @@ function CreateModal({
   };
 
   const selectablePlaces =
-    viewer?.role === "host"
+    viewer?.role === "host" && authorizedVenueIds.length > 0
       ? places.filter((p) => authorizedVenueIds.includes(p.id))
       : places;
 

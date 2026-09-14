@@ -16,7 +16,7 @@ test("invite landing page handles invalid or expired token gracefully", async ({
 
 test("supply pilot UI elements exist in explore view", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByText("TP. Hồ Chí Minh")).toBeVisible();
+  await expect(page.getByText("TP. Hồ Chí Minh").first()).toBeVisible();
 
   const signalCard = page.getByRole("button", {
     name: /Thể thao.*Cầu lông tối nay/,
