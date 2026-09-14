@@ -62,10 +62,10 @@ test("social homepage fits a phone viewport and contribution flow remains reacha
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await expect(
-    page.getByRole("link", { name: /Vietnam Social/ }),
-  ).toBeVisible();
   await expect(page.getByRole("button", { name: /^Quanh đây/ })).toBeVisible();
+  await expect(
+    page.getByPlaceholder("Tìm bài viết, cộng đồng, hoạt động, khu vực..."),
+  ).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
