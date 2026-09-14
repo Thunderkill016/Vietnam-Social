@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import * as Dialog from "@radix-ui/react-dialog";
 import {
   Activity,
   Compass,
@@ -113,6 +114,7 @@ export function UnifiedSocialExplore() {
     counts: { local_post: 0, community: 0, activity: 0, place: 0 },
   });
   const [selected, setSelected] = useState<SocialMapEntity | null>(null);
+  const [deepLinkedPost, setDeepLinkedPost] = useState<LocalPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const requestVersion = useRef(0);
@@ -123,6 +125,20 @@ export function UnifiedSocialExplore() {
     void api<{ city?: CityConfig }>("/api/bootstrap")
       .then((result) => result.city && setCity(result.city))
       .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("post");
+    if (!id) return;
+    let active = true;
+    void api<{ post: LocalPost }>(`/api/posts/${id}`)
+      .then((result) => {
+        if (active) setDeepLinkedPost(result.post);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
   }, []);
 
   const loadMap = useCallback(
@@ -458,6 +474,52 @@ export function UnifiedSocialExplore() {
           )}
         </aside>
       </section>
+
+      <Dialog.Root
+        open={Boolean(deepLinkedPost)}
+        onOpenChange={(open) => {
+          if (open) return;
+          setDeepLinkedPost(null);
+          const url = new URL(window.location.href);
+          url.searchParams.delete("post");
+          window.history.replaceState({}, "", url);
+        }}
+      >
+        <Dialog.Portal>
+          <Dialog.Overlay className={styles.overlay} />
+          <Dialog.Content className={`${styles.modal} ${styles.detailModal}`}>
+            <Dialog.Close className={styles.close} aria-label="Đóng">
+              <X />
+            </Dialog.Close>
+            {deepLinkedPost && (
+              <>
+                <Dialog.Title className={styles.modalTitle}>
+                  {LOCAL_POST_TYPES[deepLinkedPost.post_type].label}
+                </Dialog.Title>
+                <Dialog.Description className={styles.postMeta}>
+                  {deepLinkedPost.author.display_name} · {deepLinkedPost.area}
+                </Dialog.Description>
+                <p>{deepLinkedPost.body}</p>
+                {deepLinkedPost.place_id && (
+                  <Link
+                    className={styles.navLink}
+                    href={`/p/${deepLinkedPost.place_id}`}
+                  >
+                    <MapPin size={15} /> Xem địa điểm{" "}
+                    {deepLinkedPost.place_name}
+                  </Link>
+                )}
+                <Link
+                  className={styles.primaryButton}
+                  href={`/contribute?post=${deepLinkedPost.id}`}
+                >
+                  <MessageCircle size={16} /> Mở thảo luận
+                </Link>
+              </>
+            )}
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </main>
   );
 }
