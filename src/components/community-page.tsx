@@ -4,10 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { LoaderCircle, MapPin, MessageCircle, Users } from "lucide-react";
 import { browserSupabase } from "@/lib/supabase";
-import {
-  COMMUNITY_CATEGORIES,
-  type CommunityDetail,
-} from "@/lib/community";
+import { COMMUNITY_CATEGORIES, type CommunityDetail } from "@/lib/community";
 import {
   LOCAL_POST_TYPES,
   localPostAge,
@@ -127,7 +124,9 @@ export function CommunityPage({ id }: { id: string }) {
         <div className={styles.hero}>
           <h1>Không tìm thấy cộng đồng</h1>
           <p>{notice}</p>
-          <Link href="/" className={styles.link}>Về bản đồ xã hội</Link>
+          <Link href="/" className={styles.link}>
+            Về bản đồ xã hội
+          </Link>
         </div>
       </main>
     );
@@ -135,19 +134,36 @@ export function CommunityPage({ id }: { id: string }) {
 
   const { community, posts } = detail;
   const canPost = community.viewer_is_member;
-  const canLeave = community.viewer_is_member && community.viewer_role !== "owner";
+  const canLeave =
+    community.viewer_is_member && community.viewer_role !== "owner";
 
   return (
     <main className={styles.shell}>
       <header className={styles.header}>
         <div className={styles.brand}>Vietnam Social</div>
         <nav className={styles.nav}>
-          <Link href="/" className={styles.link}>Bản đồ xã hội</Link>
-          <Link href="/activities" className={styles.link}>Hoạt động</Link>
+          <Link href="/" className={styles.link}>
+            Bản đồ xã hội
+          </Link>
+          <Link href="/activities" className={styles.link}>
+            Hoạt động
+          </Link>
           {!community.viewer_is_member ? (
-            <button className={styles.primary} disabled={pending} onClick={() => void membership("join")}>Tham gia cộng đồng</button>
+            <button
+              className={styles.primary}
+              disabled={pending}
+              onClick={() => void membership("join")}
+            >
+              Tham gia cộng đồng
+            </button>
           ) : canLeave ? (
-            <button className={styles.button} disabled={pending} onClick={() => void membership("leave")}>Rời cộng đồng</button>
+            <button
+              className={styles.button}
+              disabled={pending}
+              onClick={() => void membership("leave")}
+            >
+              Rời cộng đồng
+            </button>
           ) : (
             <span className={styles.chip}>Bạn là chủ cộng đồng</span>
           )}
@@ -157,13 +173,23 @@ export function CommunityPage({ id }: { id: string }) {
       {notice && <div className={styles.notice}>{notice}</div>}
 
       <section className={styles.hero}>
-        <div className={styles.eyebrow}>{COMMUNITY_CATEGORIES[community.category]} · COMMUNITY</div>
+        <div className={styles.eyebrow}>
+          {COMMUNITY_CATEGORIES[community.category]} · COMMUNITY
+        </div>
         <h1>{community.name}</h1>
-        <p>{community.description || "Cộng đồng địa phương trên Vietnam Social."}</p>
+        <p>
+          {community.description || "Cộng đồng địa phương trên Vietnam Social."}
+        </p>
         <div className={styles.meta}>
-          <span className={styles.chip}><MapPin size={14} /> {community.place_name || community.area}</span>
-          <span className={styles.chip}><Users size={14} /> {community.member_count} thành viên</span>
-          <span className={styles.chip}><MessageCircle size={14} /> {posts.length} bài gần đây</span>
+          <span className={styles.chip}>
+            <MapPin size={14} /> {community.place_name || community.area}
+          </span>
+          <span className={styles.chip}>
+            <Users size={14} /> {community.member_count} thành viên
+          </span>
+          <span className={styles.chip}>
+            <MessageCircle size={14} /> {posts.length} bài gần đây
+          </span>
         </div>
       </section>
 
@@ -172,11 +198,30 @@ export function CommunityPage({ id }: { id: string }) {
           <h2>Thảo luận cộng đồng</h2>
           {canPost ? (
             <div className={styles.form}>
-              <select value={postType} onChange={(event) => setPostType(event.target.value as LocalPostType)}>
-                {Object.entries(LOCAL_POST_TYPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              <select
+                value={postType}
+                onChange={(event) =>
+                  setPostType(event.target.value as LocalPostType)
+                }
+              >
+                {Object.entries(LOCAL_POST_TYPES).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
               </select>
-              <textarea rows={4} maxLength={800} value={postBody} onChange={(event) => setPostBody(event.target.value)} placeholder="Chia sẻ điều hữu ích với cộng đồng…" />
-              <button className={styles.primary} disabled={pending || postBody.trim().length < 8} onClick={() => void createPost()}>
+              <textarea
+                rows={4}
+                maxLength={800}
+                value={postBody}
+                onChange={(event) => setPostBody(event.target.value)}
+                placeholder="Chia sẻ điều hữu ích với cộng đồng…"
+              />
+              <button
+                className={styles.primary}
+                disabled={pending || postBody.trim().length < 8}
+                onClick={() => void createPost()}
+              >
                 {pending ? "Đang đăng…" : "Đăng vào cộng đồng"}
               </button>
             </div>
@@ -185,7 +230,10 @@ export function CommunityPage({ id }: { id: string }) {
           )}
 
           {posts.length === 0 ? (
-            <p className={styles.muted}>Chưa có bài nào. Vietnam Social không tạo nội dung giả để lấp chỗ trống.</p>
+            <p className={styles.muted}>
+              Chưa có bài nào. Vietnam Social không tạo nội dung giả để lấp chỗ
+              trống.
+            </p>
           ) : (
             posts.map((post) => (
               <article key={post.id} className={styles.post}>
@@ -194,7 +242,9 @@ export function CommunityPage({ id }: { id: string }) {
                   <span>·</span>
                   <span>{localPostAge(post.created_at)}</span>
                 </div>
-                <Link href={`/u/${post.author.id}`}><strong>{post.author.display_name}</strong></Link>
+                <Link href={`/u/${post.author.id}`}>
+                  <strong>{post.author.display_name}</strong>
+                </Link>
                 <p>{post.body}</p>
               </article>
             ))
@@ -204,12 +254,24 @@ export function CommunityPage({ id }: { id: string }) {
         <aside className={styles.card}>
           <h3>Người tạo cộng đồng</h3>
           <Link href={`/u/${community.creator.id}`} className={styles.creator}>
-            <span className={styles.avatar}>{community.creator.display_name.slice(0,1).toUpperCase()}</span>
-            <span><strong>{community.creator.display_name}</strong><br/><small>{community.creator.organizer_label || "Thành viên Vietnam Social"}</small></span>
+            <span className={styles.avatar}>
+              {community.creator.display_name.slice(0, 1).toUpperCase()}
+            </span>
+            <span>
+              <strong>{community.creator.display_name}</strong>
+              <br />
+              <small>
+                {community.creator.organizer_label ||
+                  "Thành viên Vietnam Social"}
+              </small>
+            </span>
           </Link>
           <h3>Khu vực</h3>
           <p className={styles.muted}>{community.area}</p>
-          <p className={styles.muted}>Cộng đồng được neo vào khu vực/địa điểm công cộng, không phải vị trí sống trực tiếp của thành viên.</p>
+          <p className={styles.muted}>
+            Cộng đồng được neo vào khu vực/địa điểm công cộng, không phải vị trí
+            sống trực tiếp của thành viên.
+          </p>
         </aside>
       </section>
     </main>

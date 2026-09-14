@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  communitySchema,
-  createCommunitySchema,
-} from "../src/lib/community";
+import { communitySchema, createCommunitySchema } from "../src/lib/community";
 
 const placeId = "10000000-0000-4000-8000-000000000777";
 const communityId = "50000000-0000-4000-8000-000000000777";

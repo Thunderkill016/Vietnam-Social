@@ -58,7 +58,8 @@ export const createCommunitySchema = z
   })
   .strict()
   .superRefine((value, ctx) => {
-    const targets = Number(Boolean(value.place_id)) + Number(Boolean(value.area));
+    const targets =
+      Number(Boolean(value.place_id)) + Number(Boolean(value.area));
     if (targets !== 1) {
       ctx.addIssue({
         code: "custom",

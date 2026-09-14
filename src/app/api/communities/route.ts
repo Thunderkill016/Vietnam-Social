@@ -20,7 +20,8 @@ export async function GET(request: Request) {
     north: url.searchParams.get("north") ?? DEFAULT_VIEWPORT.north,
     city_id: url.searchParams.get("city_id") ?? DEFAULT_VIEWPORT.city_id,
   });
-  if (!bounds.success) return failure("Vùng xem không hợp lệ. Hãy phóng to bản đồ.");
+  if (!bounds.success)
+    return failure("Vùng xem không hợp lệ. Hãy phóng to bản đồ.");
 
   const db = requestSupabase(request);
   if (!db) return ok({ mode: "demo", communities: [] });
@@ -28,7 +29,8 @@ export async function GET(request: Request) {
   const { data, error } = await db.rpc("discover_communities", {
     p_bounds: bounds.data,
   });
-  if (error) return failure("Chưa tải được cộng đồng.", 503, { dbError: error });
+  if (error)
+    return failure("Chưa tải được cộng đồng.", 503, { dbError: error });
   const parsed = communitySchema.array().safeParse(data);
   if (!parsed.success) {
     return failure("Dữ liệu cộng đồng chưa đúng định dạng.", 502, {
@@ -41,7 +43,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const db = requestSupabase(request);
   if (!db) return failure("Cần kết nối Supabase để tạo cộng đồng.", 503);
-  if (!request.headers.get("authorization")) return failure("Bạn cần đăng nhập.", 401);
+  if (!request.headers.get("authorization"))
+    return failure("Bạn cần đăng nhập.", 401);
 
   let body: unknown;
   try {
@@ -50,9 +53,14 @@ export async function POST(request: Request) {
     return failure((error as Error).message);
   }
   const parsed = createCommunitySchema.safeParse(body);
-  if (!parsed.success) return failure(parsed.error.issues[0]?.message ?? "Cộng đồng không hợp lệ.");
+  if (!parsed.success)
+    return failure(
+      parsed.error.issues[0]?.message ?? "Cộng đồng không hợp lệ.",
+    );
 
-  const { data, error } = await db.rpc("create_community", { p_input: parsed.data });
+  const { data, error } = await db.rpc("create_community", {
+    p_input: parsed.data,
+  });
   if (error) return databaseFailure(error, { entity: "community" });
   return ok({ id: data });
 }

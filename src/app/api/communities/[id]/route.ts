@@ -13,7 +13,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  if (!z.uuid().safeParse(id).success) return failure("Không tìm thấy cộng đồng.", 404);
+  if (!z.uuid().safeParse(id).success)
+    return failure("Không tìm thấy cộng đồng.", 404);
   const db = requestSupabase(request);
   if (!db) return failure("Cộng đồng chưa có trong bản xem thử.", 404);
 
@@ -22,10 +23,14 @@ export async function GET(
     db.rpc("get_community_posts", { p_id: id }),
   ]);
   if (communityResult.error)
-    return failure("Chưa tải được cộng đồng.", 503, { dbError: communityResult.error });
+    return failure("Chưa tải được cộng đồng.", 503, {
+      dbError: communityResult.error,
+    });
   if (!communityResult.data) return failure("Không tìm thấy cộng đồng.", 404);
   if (postsResult.error)
-    return failure("Chưa tải được bài trong cộng đồng.", 503, { dbError: postsResult.error });
+    return failure("Chưa tải được bài trong cộng đồng.", 503, {
+      dbError: postsResult.error,
+    });
 
   const parsedCommunity = communitySchema.safeParse(communityResult.data);
   const parsedPosts = localPostSchema.array().safeParse(postsResult.data);
@@ -44,10 +49,12 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  if (!z.uuid().safeParse(id).success) return failure("Không tìm thấy cộng đồng.", 404);
+  if (!z.uuid().safeParse(id).success)
+    return failure("Không tìm thấy cộng đồng.", 404);
   const db = requestSupabase(request);
   if (!db) return failure("Bản xem thử không lưu thành viên.", 503);
-  if (!request.headers.get("authorization")) return failure("Bạn cần đăng nhập.", 401);
+  if (!request.headers.get("authorization"))
+    return failure("Bạn cần đăng nhập.", 401);
 
   let body: unknown;
   try {

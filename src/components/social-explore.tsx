@@ -535,7 +535,9 @@ export function SocialExplore() {
                   <span>{localPostAge(post.created_at)}</span>
                 </div>
                 <strong>{post.author.display_name}</strong>
-                {post.community && <small>Cộng đồng · {post.community.name}</small>}
+                {post.community && (
+                  <small>Cộng đồng · {post.community.name}</small>
+                )}
                 <p>{post.body}</p>
                 <div className={styles.postFooter}>
                   <span>
@@ -666,8 +668,9 @@ export function SocialExplore() {
               Tạo cộng đồng địa phương
             </Dialog.Title>
             <Dialog.Description className={styles.modalDescription}>
-              Cộng đồng phải neo vào một khu vực hoặc địa điểm công cộng. Vietnam
-              Social không công khai vị trí sống trực tiếp của thành viên.
+              Cộng đồng phải neo vào một khu vực hoặc địa điểm công cộng.
+              Vietnam Social không công khai vị trí sống trực tiếp của thành
+              viên.
             </Dialog.Description>
             <div className={styles.formGrid}>
               <label>
@@ -689,11 +692,13 @@ export function SocialExplore() {
                     )
                   }
                 >
-                  {Object.entries(COMMUNITY_CATEGORIES).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
+                  {Object.entries(COMMUNITY_CATEGORIES).map(
+                    ([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ),
+                  )}
                 </select>
               </label>
               <label>
