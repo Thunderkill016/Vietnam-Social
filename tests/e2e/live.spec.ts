@@ -60,7 +60,7 @@ test("two independent authenticated sessions: publish, join, confirm, broadcast 
       [h, hostEmail],
       [m, memberEmail],
     ] as const) {
-      await page.goto("/activities");
+      await page.goto("/activities/manage");
       await page
         .getByRole("button", { name: "Đăng nhập", exact: true })
         .click();
@@ -136,7 +136,6 @@ test("two independent authenticated sessions: publish, join, confirm, broadcast 
         `select count(*) from app_private.actions where signal_id='${signalId}' and value='confirm'`,
       ).trim(),
     ).toBe("1");
-    // Phase D: use the same isolated identities and real public venue as the Activity flow.
     const headers = { Authorization: `Bearer ${access}` };
     const createdCommunity = await m.request.post("/api/communities", {
       headers,
@@ -162,7 +161,7 @@ test("two independent authenticated sessions: publish, join, confirm, broadcast 
     await m.goto(`/?post=${postId}`);
     await m
       .getByRole("dialog")
-      .getByRole("link", { name: /Xem địa điểm/ })
+      .getByRole("link", { name: new RegExp(`E2E public place ${run}`) })
       .click();
     await expect(m).toHaveURL(new RegExp(`/p/${placeId}$`));
     await expect(
@@ -218,7 +217,6 @@ test("two independent authenticated sessions: publish, join, confirm, broadcast 
       ),
     ).toBe(true);
     await m.screenshot({ path: "artifacts/live-place-following.png" });
-    // Return to the original detail before testing its expiry behavior below.
     await m.goto(`/s/${signalId}`);
     await expect(m.getByRole("dialog")).toBeVisible();
     localSql(
@@ -229,7 +227,6 @@ test("two independent authenticated sessions: publish, join, confirm, broadcast 
     expect((await m.request.get(`/api/signals/${signalId}`)).status()).toBe(
       404,
     );
-    // E1.1: real HTTP authorization plus rendered fixture inventory in isolated DB.
     expect((await m.request.get("/api/ops/dashboard")).status()).toBe(401);
     expect(
       (await m.request.get("/api/ops/dashboard", { headers })).status(),
@@ -237,7 +234,7 @@ test("two independent authenticated sessions: publish, join, confirm, broadcast 
     localSql(
       `update app_private.profiles set role='moderator' where id='${hostId}'`,
     );
-    await h.goto("/activities");
+    await h.goto("/activities/manage");
     await h.getByRole("button", { name: "Vận hành", exact: true }).click();
     await expect(
       h.getByText("Host quay lại đăng", { exact: true }),
