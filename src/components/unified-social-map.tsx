@@ -134,7 +134,10 @@ export function UnifiedSocialMap({
       button.className = `${styles.mapPin} ${selectedKey === `${entity.kind}:${entity.id}` ? styles.mapPinSelected : ""}`;
       button.textContent = PIN_LABEL[entity.kind];
       button.dataset.kind = entity.kind;
-      button.setAttribute("aria-label", `Mở ${entity.title} tại ${entity.area}`);
+      button.setAttribute(
+        "aria-label",
+        `Mở ${entity.title} tại ${entity.area}`,
+      );
       button.addEventListener("click", () => selectRef.current(entity));
       return new Marker({ element: button, anchor: "bottom" })
         .setLngLat([entity.longitude, entity.latitude])

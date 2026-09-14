@@ -34,9 +34,9 @@ describe("Phase E1 evidence integrity", () => {
       data: null,
       error: { code: "XX000", message: "forced database failure" },
     });
-    vi.mocked(requestSupabase).mockReturnValue({ rpc } as unknown as NonNullable<
-      ReturnType<typeof requestSupabase>
-    >);
+    vi.mocked(requestSupabase).mockReturnValue({
+      rpc,
+    } as unknown as NonNullable<ReturnType<typeof requestSupabase>>);
 
     const response = await RECORD_EVENT(
       new Request("http://localhost/api/events", {
@@ -51,9 +51,9 @@ describe("Phase E1 evidence integrity", () => {
 
   it("reports recorded=true only after the database RPC succeeds", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: null, error: null });
-    vi.mocked(requestSupabase).mockReturnValue({ rpc } as unknown as NonNullable<
-      ReturnType<typeof requestSupabase>
-    >);
+    vi.mocked(requestSupabase).mockReturnValue({
+      rpc,
+    } as unknown as NonNullable<ReturnType<typeof requestSupabase>>);
 
     const response = await RECORD_EVENT(
       new Request("http://localhost/api/events", {
@@ -68,9 +68,9 @@ describe("Phase E1 evidence integrity", () => {
 
   it("rejects spoofed evidence flags before calling the database", async () => {
     const rpc = vi.fn();
-    vi.mocked(requestSupabase).mockReturnValue({ rpc } as unknown as NonNullable<
-      ReturnType<typeof requestSupabase>
-    >);
+    vi.mocked(requestSupabase).mockReturnValue({
+      rpc,
+    } as unknown as NonNullable<ReturnType<typeof requestSupabase>>);
 
     const response = await RECORD_EVENT(
       new Request("http://localhost/api/events", {

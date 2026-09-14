@@ -1,10 +1,6 @@
 import { ok, failure } from "@/lib/api";
 import { demoSignals } from "@/lib/demo";
-import {
-  HCMC_CITY,
-  isKnownFixturePlace,
-  type CityConfig,
-} from "@/lib/domain";
+import { HCMC_CITY, isKnownFixturePlace, type CityConfig } from "@/lib/domain";
 import { publicConfig } from "@/lib/env";
 import { requestSupabase } from "@/lib/supabase";
 
@@ -78,8 +74,7 @@ export async function GET() {
   const places = (placesRes.data ?? [])
     .filter(
       (place) =>
-        config.env !== "production" &&
-        config.env !== "staging" ||
+        (config.env !== "production" && config.env !== "staging") ||
         !isKnownFixturePlace(place.id),
     )
     .map((place) => ({

@@ -43,24 +43,14 @@ export const analyticsEventSchema = z.discriminatedUnion("type", [
     type: z.literal("map_entity_impression"),
     city_id: z.string(),
     ...baseEventFields,
-    subject_type: z.enum([
-      "local_post",
-      "community",
-      "activity",
-      "place",
-    ]),
+    subject_type: z.enum(["local_post", "community", "activity", "place"]),
     subject_id: z.string().min(1).max(200),
   }),
   strict({
     type: z.literal("map_entity_opened"),
     city_id: z.string(),
     ...baseEventFields,
-    subject_type: z.enum([
-      "local_post",
-      "community",
-      "activity",
-      "place",
-    ]),
+    subject_type: z.enum(["local_post", "community", "activity", "place"]),
     subject_id: z.string().min(1).max(200),
   }),
   strict({

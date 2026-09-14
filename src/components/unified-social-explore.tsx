@@ -77,11 +77,23 @@ function specificOpenEvent(entity: SocialMapEntity) {
   } as const;
   switch (entity.kind) {
     case "local_post":
-      return { ...common, type: "local_post_opened" as const, subject_type: "local_post" as const };
+      return {
+        ...common,
+        type: "local_post_opened" as const,
+        subject_type: "local_post" as const,
+      };
     case "community":
-      return { ...common, type: "community_opened" as const, subject_type: "community" as const };
+      return {
+        ...common,
+        type: "community_opened" as const,
+        subject_type: "community" as const,
+      };
     case "place":
-      return { ...common, type: "place_opened" as const, subject_type: "place" as const };
+      return {
+        ...common,
+        type: "place_opened" as const,
+        subject_type: "place" as const,
+      };
     case "activity":
       return null;
   }
@@ -113,28 +125,35 @@ export function UnifiedSocialExplore() {
       .catch(() => undefined);
   }, []);
 
-  const loadMap = useCallback(async (signal?: AbortSignal) => {
-    const current = ++requestVersion.current;
-    const params = new URLSearchParams(
-      Object.entries(bounds).map(([key, value]) => [key, String(value)]),
-    );
-    try {
-      setLoading(true);
-      const result = await api<UnifiedSocialMapResponse>(`/api/map?${params}`, {
-        signal,
-      });
-      if (current !== requestVersion.current) return;
-      const parsed = unifiedSocialMapResponseSchema.safeParse(result);
-      if (!parsed.success) throw new Error("Dữ liệu bản đồ xã hội chưa đúng định dạng.");
-      setData(parsed.data);
-      setError("");
-    } catch (reason) {
-      if (signal?.aborted || current !== requestVersion.current) return;
-      setError((reason as Error).message);
-    } finally {
-      if (current === requestVersion.current) setLoading(false);
-    }
-  }, [bounds]);
+  const loadMap = useCallback(
+    async (signal?: AbortSignal) => {
+      const current = ++requestVersion.current;
+      const params = new URLSearchParams(
+        Object.entries(bounds).map(([key, value]) => [key, String(value)]),
+      );
+      try {
+        setLoading(true);
+        const result = await api<UnifiedSocialMapResponse>(
+          `/api/map?${params}`,
+          {
+            signal,
+          },
+        );
+        if (current !== requestVersion.current) return;
+        const parsed = unifiedSocialMapResponseSchema.safeParse(result);
+        if (!parsed.success)
+          throw new Error("Dữ liệu bản đồ xã hội chưa đúng định dạng.");
+        setData(parsed.data);
+        setError("");
+      } catch (reason) {
+        if (signal?.aborted || current !== requestVersion.current) return;
+        setError((reason as Error).message);
+      } finally {
+        if (current === requestVersion.current) setLoading(false);
+      }
+    },
+    [bounds],
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -221,7 +240,9 @@ export function UnifiedSocialExplore() {
       <header className={styles.header}>
         <div>
           <div className={styles.brand}>Vietnam Social</div>
-          <div className={styles.tagline}>Bản đồ sống về con người và cộng đồng Việt Nam</div>
+          <div className={styles.tagline}>
+            Bản đồ sống về con người và cộng đồng Việt Nam
+          </div>
         </div>
         <nav className={styles.nav} aria-label="Điều hướng chính">
           <Link href="/" className={`${styles.navLink} ${styles.navActive}`}>
@@ -230,7 +251,9 @@ export function UnifiedSocialExplore() {
           <Link href="/activities" className={styles.navLink}>
             <Activity size={16} /> Hoạt động
           </Link>
-          <Link href="/following" className={styles.navLink}>Đang theo dõi</Link>
+          <Link href="/following" className={styles.navLink}>
+            Đang theo dõi
+          </Link>
           <Link href="/contribute" className={styles.ghostButton}>
             <Plus size={16} /> Đóng góp
           </Link>
@@ -249,10 +272,18 @@ export function UnifiedSocialExplore() {
           </p>
         </div>
         <div className={styles.legend}>
-          <span><b>•</b> Bài</span>
-          <span><b>C</b> Cộng đồng</span>
-          <span><b>A</b> Hoạt động</span>
-          <span><b>P</b> Địa điểm</span>
+          <span>
+            <b>•</b> Bài
+          </span>
+          <span>
+            <b>C</b> Cộng đồng
+          </span>
+          <span>
+            <b>A</b> Hoạt động
+          </span>
+          <span>
+            <b>P</b> Địa điểm
+          </span>
         </div>
       </section>
 
@@ -263,7 +294,11 @@ export function UnifiedSocialExplore() {
       )}
       {error && <div className={styles.errorBanner}>{error}</div>}
 
-      <div className={styles.scopeSwitch} role="group" aria-label="Lọc lớp xã hội">
+      <div
+        className={styles.scopeSwitch}
+        role="group"
+        aria-label="Lọc lớp xã hội"
+      >
         {SOCIAL_MAP_FILTERS.map((item) => (
           <button
             key={item}
@@ -290,47 +325,73 @@ export function UnifiedSocialExplore() {
           />
         </div>
 
-        <aside className={styles.feed} aria-label="Đời sống xã hội trong vùng bản đồ">
+        <aside
+          className={styles.feed}
+          aria-label="Đời sống xã hội trong vùng bản đồ"
+        >
           <div className={styles.feedHeader}>
             <div>
               <strong>Đời sống quanh đây</strong>
               <span>
-                {data.counts.local_post} bài · {data.counts.community} cộng đồng ·{" "}
-                {data.counts.activity} hoạt động · {data.counts.place} địa điểm
+                {data.counts.local_post} bài · {data.counts.community} cộng đồng
+                · {data.counts.activity} hoạt động · {data.counts.place} địa
+                điểm
               </span>
             </div>
             {loading && <LoaderCircle className={styles.spin} size={18} />}
           </div>
 
           {selected && (
-            <section className={styles.postCard} aria-label="Đối tượng đang chọn">
+            <section
+              className={styles.postCard}
+              aria-label="Đối tượng đang chọn"
+            >
               <div className={styles.postMeta}>
-                <span className={styles.typeChip}>{FILTER_LABELS[selected.kind]}</span>
-                <button type="button" onClick={() => setSelected(null)} aria-label="Bỏ chọn">
+                <span className={styles.typeChip}>
+                  {FILTER_LABELS[selected.kind]}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelected(null)}
+                  aria-label="Bỏ chọn"
+                >
                   <X size={15} />
                 </button>
               </div>
               <strong>{selected.title}</strong>
               <p>{selected.subtitle}</p>
               <div className={styles.postFooter}>
-                <span><MapPin size={14} /> {selected.area}</span>
+                <span>
+                  <MapPin size={14} /> {selected.area}
+                </span>
               </div>
 
               {selectedPost && (
                 <>
                   <p>{selectedPost.body}</p>
-                  <Link className={styles.navLink} href={`/u/${selectedPost.author.id}`}>
+                  <Link
+                    className={styles.navLink}
+                    href={`/u/${selectedPost.author.id}`}
+                  >
                     {selectedPost.author.display_name}
                   </Link>
-                  <Link className={styles.primaryButton} href={`/contribute?post=${selectedPost.id}`}>
+                  <Link
+                    className={styles.primaryButton}
+                    href={`/contribute?post=${selectedPost.id}`}
+                  >
                     <MessageCircle size={16} /> Mở thảo luận
                   </Link>
                 </>
               )}
               {selectedCommunity && (
                 <>
-                  <p>{selectedCommunity.description || "Cộng đồng địa phương"}</p>
-                  <Link className={styles.primaryButton} href={`/c/${selectedCommunity.id}`}>
+                  <p>
+                    {selectedCommunity.description || "Cộng đồng địa phương"}
+                  </p>
+                  <Link
+                    className={styles.primaryButton}
+                    href={`/c/${selectedCommunity.id}`}
+                  >
                     <Users size={16} /> Vào cộng đồng
                   </Link>
                 </>
@@ -338,13 +399,19 @@ export function UnifiedSocialExplore() {
               {selectedActivity && (
                 <>
                   <p>{selectedActivity.description}</p>
-                  <Link className={styles.primaryButton} href={`/s/${selectedActivity.id}`}>
+                  <Link
+                    className={styles.primaryButton}
+                    href={`/s/${selectedActivity.id}`}
+                  >
                     <Activity size={16} /> Xem & tham gia
                   </Link>
                 </>
               )}
               {selectedPlace && (
-                <Link className={styles.primaryButton} href={`/p/${selectedPlace.id}`}>
+                <Link
+                  className={styles.primaryButton}
+                  href={`/p/${selectedPlace.id}`}
+                >
                   <MapPin size={16} /> Mở Social Place
                 </Link>
               )}
@@ -354,8 +421,13 @@ export function UnifiedSocialExplore() {
           {!loading && visibleEntities.length === 0 ? (
             <div className={styles.emptyState}>
               <Compass size={30} />
-              <strong>Chưa có dữ liệu thật cho lớp này trong vùng bản đồ.</strong>
-              <p>Vietnam Social giữ trạng thái trống trung thực thay vì tạo hoạt động giả.</p>
+              <strong>
+                Chưa có dữ liệu thật cho lớp này trong vùng bản đồ.
+              </strong>
+              <p>
+                Vietnam Social giữ trạng thái trống trung thực thay vì tạo hoạt
+                động giả.
+              </p>
               <Link className={styles.primaryButton} href="/contribute">
                 Đóng góp đầu tiên
               </Link>
@@ -369,13 +441,17 @@ export function UnifiedSocialExplore() {
                 onClick={() => selectEntity(entity)}
               >
                 <div className={styles.postMeta}>
-                  <span className={styles.typeChip}>{FILTER_LABELS[entity.kind]}</span>
+                  <span className={styles.typeChip}>
+                    {FILTER_LABELS[entity.kind]}
+                  </span>
                   <span>{entity.trust_state || entity.area}</span>
                 </div>
                 <strong>{entity.title}</strong>
                 <p>{entity.subtitle}</p>
                 <div className={styles.postFooter}>
-                  <span><MapPin size={14} /> {entity.area}</span>
+                  <span>
+                    <MapPin size={14} /> {entity.area}
+                  </span>
                 </div>
               </button>
             ))

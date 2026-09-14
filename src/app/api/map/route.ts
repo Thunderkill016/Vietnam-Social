@@ -82,18 +82,19 @@ export async function GET(request: Request) {
     .order("name", { ascending: true })
     .limit(12);
 
-  const [postsRes, communitiesRes, activitiesRes, placesRes] = await Promise.all([
-    wants("local_post")
-      ? db.rpc("discover_local_posts", { p_bounds: bounds.data })
-      : Promise.resolve({ data: [], error: null }),
-    wants("community")
-      ? db.rpc("discover_communities", { p_bounds: bounds.data })
-      : Promise.resolve({ data: [], error: null }),
-    wants("activity")
-      ? db.rpc("discover_signals", { p_bounds: bounds.data })
-      : Promise.resolve({ data: [], error: null }),
-    wants("place") ? placesQuery : Promise.resolve({ data: [], error: null }),
-  ]);
+  const [postsRes, communitiesRes, activitiesRes, placesRes] =
+    await Promise.all([
+      wants("local_post")
+        ? db.rpc("discover_local_posts", { p_bounds: bounds.data })
+        : Promise.resolve({ data: [], error: null }),
+      wants("community")
+        ? db.rpc("discover_communities", { p_bounds: bounds.data })
+        : Promise.resolve({ data: [], error: null }),
+      wants("activity")
+        ? db.rpc("discover_signals", { p_bounds: bounds.data })
+        : Promise.resolve({ data: [], error: null }),
+      wants("place") ? placesQuery : Promise.resolve({ data: [], error: null }),
+    ]);
 
   const firstError =
     postsRes.error ??
@@ -108,7 +109,9 @@ export async function GET(request: Request) {
   }
 
   const posts = localPostSchema.array().safeParse(postsRes.data ?? []);
-  const communities = communitySchema.array().safeParse(communitiesRes.data ?? []);
+  const communities = communitySchema
+    .array()
+    .safeParse(communitiesRes.data ?? []);
   const activities = signalSchema.array().safeParse(activitiesRes.data ?? []);
   const rawPlaces = (placesRes.data ?? [])
     .filter(
@@ -123,7 +126,12 @@ export async function GET(request: Request) {
         : ("real" as const),
     }));
   const places = socialMapPlaceSchema.array().safeParse(rawPlaces);
-  if (!posts.success || !communities.success || !activities.success || !places.success) {
+  if (
+    !posts.success ||
+    !communities.success ||
+    !activities.success ||
+    !places.success
+  ) {
     return failure("Dữ liệu bản đồ xã hội chưa đúng định dạng.", 502);
   }
 
