@@ -531,11 +531,11 @@ Continue measuring:
 - map-native Communities with identity, membership, owner protection, member posting, and moderation
 - map discovery containing both Local Posts and Communities
 - optional Community linkage on Activity Signals at the database layer
+- rich Place social pages, explicit Place/Area following, and a private Following view
+- bounded area context and contextual approved Place discovery from the map
 
 ### Product direction defined but not yet fully implemented
 
-- rich social Place pages
-- place and area following
 - social notifications
 - richer Community administration and roles UX
 - end-to-end Activity ↔ Community creation/discovery UX beyond the optional database linkage
@@ -564,9 +564,13 @@ Implemented persistent Community identity, map discovery, membership, member-sco
 
 This is technically shipped; real-world Community retention and safety validation is still pending.
 
-### Phase D — Rich Places and area following — next
+### Phase D — Rich Places and area following — technically shipped
 
-Test richer place social pages and persistent area relationships based on observed user behavior.
+Implemented `/p/[id]` with existing Local Posts, discoverable Activities, Communities and real follower counts; authenticated idempotent Place/Area follow and unfollow; private `/following`; and `/a` area context based on catalog-recognized `(city_id, area)`. The map offers a bounded list of approved Places in its viewport, and Posts, Activities and Communities link back to Place pages.
+
+No GPS tracking, person-location access, business ratings, fake engagement or generic infinite feed is introduced. Community membership and Place/Area follows remain separate graph edges.
+
+Real-world market validation and retention validation have NOT passed merely because the code shipped. Deployment and production migration are verified separately; Phase E requires a new explicit scope.
 
 ### Phase E — HCMC density and retention
 

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
   Activity,
@@ -79,6 +80,7 @@ const DEFAULT_BOUNDS: Bounds = {
 };
 
 export function SocialExplore() {
+  const router = useRouter();
   const [city, setCity] = useState<CityConfig>(HCMC_CITY);
   const [places, setPlaces] = useState<Place[]>([]);
   const [posts, setPosts] = useState<LocalPost[]>([]);
@@ -350,7 +352,7 @@ export function SocialExplore() {
       setCommunityName("");
       setCommunityDescription("");
       await loadSocial();
-      window.location.assign(`/c/${result.id}`);
+      router.push(`/c/${result.id}`);
     } catch (e) {
       setNotice((e as Error).message);
     } finally {
@@ -459,9 +461,7 @@ export function SocialExplore() {
             communities={communities}
             selectedId={selected?.id}
             onSelect={(post) => void openPost(post)}
-            onSelectCommunity={(community) =>
-              window.location.assign(`/c/${community.id}`)
-            }
+            onSelectCommunity={(community) => router.push(`/c/${community.id}`)}
             onBounds={setBounds}
             city={city}
             initialBounds={bounds}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Bell, MapPin } from "lucide-react";
 import { browserSupabase } from "@/lib/supabase";
@@ -28,10 +28,13 @@ export function FollowingPage() {
   const [data, setData] = useState<LocalFollows | null>(null);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
+  const loadVersion = useRef(0);
 
   const load = useCallback(async () => {
+    const version = ++loadVersion.current;
     const db = browserSupabase();
     const session = db ? (await db.auth.getSession()).data.session : null;
+    if (version !== loadVersion.current) return;
     if (!session) {
       setData(null);
       setLoading(false);
@@ -40,13 +43,16 @@ export function FollowingPage() {
     }
     try {
       setLoading(true);
-      setData(await api<LocalFollows>("/api/follows/local"));
+      const result = await api<LocalFollows>("/api/follows/local");
+      if (version !== loadVersion.current) return;
+      setData(result);
       setNotice("");
     } catch (error) {
+      if (version !== loadVersion.current) return;
       setData(null);
       setNotice((error as Error).message);
     } finally {
-      setLoading(false);
+      if (version === loadVersion.current) setLoading(false);
     }
   }, []);
 
@@ -56,7 +62,12 @@ export function FollowingPage() {
     const subscription = db?.auth.onAuthStateChange(() => {
       void load();
     });
-    return () => subscription?.data.subscription.unsubscribe();
+    // Capture the stable request counter, not a render-specific value.
+    const pendingLoads = loadVersion;
+    return () => {
+      ++pendingLoads.current;
+      subscription?.data.subscription.unsubscribe();
+    };
   }, [load]);
 
   const signIn = async () => {

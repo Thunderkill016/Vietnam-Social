@@ -32,6 +32,42 @@ import { GET as LOCAL_FOLLOWS } from "../src/app/api/follows/local/route";
 const placeParams = {
   params: Promise.resolve({ id: "10000000-0000-4000-8000-000000000401" }),
 };
+it("area follow derives city and area from the approved route Place", async () => {
+  const rpc = vi
+    .fn()
+    .mockResolvedValue({ data: { following: true }, error: null });
+  const query = {
+    select: vi.fn(),
+    eq: vi.fn(),
+    maybeSingle: vi.fn().mockResolvedValue({
+      data: { city_id: "hcm", area: "Quận 1" },
+      error: null,
+    }),
+  };
+  query.select.mockReturnValue(query);
+  query.eq.mockReturnValue(query);
+  const from = vi.fn().mockReturnValue(query);
+  vi.mocked(requestSupabase).mockReturnValue({
+    rpc,
+    from,
+  } as unknown as NonNullable<ReturnType<typeof requestSupabase>>);
+  const response = await PLACE_FOLLOW(
+    new Request("http://localhost", {
+      method: "POST",
+      headers: { Authorization: "Bearer test" },
+      body: JSON.stringify({ target: "area", follow: true }),
+    }),
+    placeParams,
+  );
+  expect(response.status).toBe(200);
+  expect(query.eq).toHaveBeenCalledWith("id", (await placeParams.params).id);
+  expect(query.eq).toHaveBeenCalledWith("enabled", true);
+  expect(rpc).toHaveBeenCalledWith("set_area_follow", {
+    p_city_id: "hcm",
+    p_area: "Quận 1",
+    p_follow: true,
+  });
+});
 it("place reads reject invalid ids and do not invent demo places", async () => {
   expect(
     (

@@ -1,6 +1,6 @@
 # Vietnam Social Architecture
 
-Status: HCMC technical foundation exists; Activity is the most complete shipped module; PRD v1 defines the target map-native social network architecture. No broad social-network adoption is claimed.
+Status: HCMC foundation, Activities, Local Posts (Phase B), Communities core (Phase C), and Rich Places + Area Following (Phase D) are technically shipped. Deployment and market/retention validation are separate gates. No broad adoption is claimed.
 
 ## 1. System shape
 
@@ -69,32 +69,28 @@ The map is a composition/discovery surface. It is not a database or a second sou
 
 ### `social-graph`
 
-Initial edge:
+Implemented edges:
 
 - person follows person
+- user follows approved public Place
+- user follows catalog-recognized coarse `(city_id, area)`
 
-Later edges require explicit product approval:
-
-- user follows community
-- user follows place
-- user follows area
+Community membership is a separate edge with its own authorization. No follow implicitly joins a Community, and membership does not imply Place/Area following.
 
 Graph relationships must not grant access to private or precise location data.
 
 ### `communities`
 
-Planned module for persistent groups organized around an interest, institution, locality, or recurring activity.
-
-Responsibilities eventually include:
+Implemented core for persistent groups organized around an interest, institution, locality, or recurring activity. Core responsibilities include:
 
 - public community identity
 - membership
-- moderators
-- posts
-- activities
-- recurring public place relationships
+- owner protection and member-scoped Local Posts
+- moderation
+- optional Activity linkage in the database
+- public Place/Area anchoring
 
-Do not implement full Communities inside the first Local Post slice unless explicitly required.
+Richer administration and Activity ↔ Community UX are deferred.
 
 ### `signals` / `activities`
 
@@ -226,13 +222,13 @@ Important:
 - Different primitives retain their own domain lifecycle.
 - Map projections must contain only safe public fields.
 
-## 7. Next social vertical slice architecture
+## 7. Implemented Local Post architecture
 
-The next slice is:
+The Phase B slice is:
 
 `Create Local Post → discover on map → open → react/comment → profile → follow`
 
-Minimum architectural additions:
+Architectural boundaries:
 
 ### Persistence
 
@@ -374,6 +370,21 @@ Current migrations implement:
 - operator supply metrics
 
 These are **current implementation facts**, not the full target social schema.
+
+### Phase D Place and Area relationships
+
+Migration `202609140008_rich_places_area_following.sql` adds private `place_follows` and `area_follows` tables, RLS without direct client grants, and constrained RPCs with fixed empty `search_path` and explicit execute grants.
+
+- `get_place_social_page(uuid)`: public Place identity, viewer state/counts, up to 30 Posts, 20 discoverable Activities and 20 Communities using existing domain projections.
+- `set_place_follow(uuid, boolean)` and `set_area_follow(text, text, boolean)`: authenticated explicit intent, null rejection, advisory-lock serialization and idempotent insert/delete. Area identity is canonicalized from the active approved Place catalog.
+- `get_my_local_follows()`: only the authenticated viewer's Place/Area edges, public Place coordinates and coarse Area identity/city name; no follower identity list or private location.
+- `get_area_social_page(text, text)`: public, catalog-recognized area context with up to 30 approved Places/Posts and 20 Activities/Communities. Existing Posts/Communities are HCMC-only in migrations 006/007; this is explicit in the area query.
+
+`/p/[id]`, `/following` and `/a?city_id=hcm&area=…` share presentation of existing social objects. Contextual Place discovery is a deterministic list of at most 12 approved Places within the current viewport. No permanent business-pin flood or external POI product is added.
+
+Public projection RPCs deliberately permit anonymous execution; mutations/private collections require authentication. Advisor notices for intentional SECURITY DEFINER entry points and private deny-by-default RLS tables must be reviewed against these grants, not silenced by broad permissions.
+
+Real-world market validation and retention validation have NOT passed merely because the code shipped. Production migration history and authenticated browser evidence are separate from local/CI tests.
 
 ## 14. Task history
 

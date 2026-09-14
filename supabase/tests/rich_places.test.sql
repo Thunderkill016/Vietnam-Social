@@ -69,6 +69,11 @@ insert into app_private.signals(id,author_id,request_id,place_id,title,category,
 ('60000000-0000-4000-8000-000000000401','20000000-0000-4000-8000-000000000401','70000000-0000-4000-8000-000000000401','10000000-0000-4000-8000-000000000401','Hoạt động thử nghiệm','sport',now()-interval '1 hour',now()+interval '1 hour');
 select is(jsonb_array_length(public.get_place_social_page('10000000-0000-4000-8000-000000000401')->k),1,'place aggregates '||k) from unnest(array['posts','activities','communities']) k;
 select is(jsonb_array_length(public.get_area_social_page('hcm','Khu thử nghiệm')->k),1,'area aggregates '||k) from unnest(array['posts','activities','communities']) k;
+set local role authenticated;
+set local request.jwt.claim.sub='20000000-0000-4000-8000-000000000402';
+select lives_ok($$select public.set_community_membership('50000000-0000-4000-8000-000000000401',true)$$,'community membership still works');
+select is(public.get_my_local_follows(),'{"places":[],"areas":[]}'::jsonb,'joining a community never implies area/place follow');
+reset role;
 update app_private.local_posts set moderation_state='removed' where id='30000000-0000-4000-8000-000000000401';
 update app_private.communities set moderation_state='quarantined' where id='50000000-0000-4000-8000-000000000401';
 update app_private.signals set expires_at=now()-interval '1 minute' where id='60000000-0000-4000-8000-000000000401';

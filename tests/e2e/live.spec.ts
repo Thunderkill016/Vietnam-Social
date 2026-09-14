@@ -205,7 +205,7 @@ test("two independent authenticated sessions: publish, join, confirm, broadcast 
       0,
     );
     await m.goto(`/c/${communityId}`);
-    await m.locator(`a[href="/p/${placeId}"]`).click();
+    await m.getByRole("link", { name: /^Xem lớp xã hội của / }).click();
     await expect(
       m.getByRole("heading", { name: "Bài địa phương", exact: true }),
     ).toBeVisible();

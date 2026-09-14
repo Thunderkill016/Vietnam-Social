@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Activity,
@@ -41,17 +41,22 @@ export function PlacePage({ id }: { id: string }) {
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState<"place" | "area" | null>(null);
   const [notice, setNotice] = useState("");
+  const loadVersion = useRef(0);
 
   const load = useCallback(async () => {
+    const version = ++loadVersion.current;
     try {
       setLoading(true);
-      setDetail(await api<PlaceSocialPage>(`/api/places/${id}`));
+      const result = await api<PlaceSocialPage>(`/api/places/${id}`);
+      if (version !== loadVersion.current) return;
+      setDetail(result);
       setNotice("");
     } catch (error) {
+      if (version !== loadVersion.current) return;
       setDetail(null);
       setNotice((error as Error).message);
     } finally {
-      setLoading(false);
+      if (version === loadVersion.current) setLoading(false);
     }
   }, [id]);
 
@@ -61,7 +66,12 @@ export function PlacePage({ id }: { id: string }) {
     const subscription = db?.auth.onAuthStateChange(() => {
       void load();
     });
-    return () => subscription?.data.subscription.unsubscribe();
+    // Capture the stable request counter, not a render-specific value.
+    const pendingLoads = loadVersion;
+    return () => {
+      ++pendingLoads.current;
+      subscription?.data.subscription.unsubscribe();
+    };
   }, [load]);
 
   const signIn = async () => {
