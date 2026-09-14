@@ -66,10 +66,10 @@ export async function GET(request: Request) {
   const all = kinds.has("all");
   const wants = (kind: SocialMapFilter) => all || kinds.has(kind);
   const config = publicConfig();
+  const hosted = config.env === "production" || config.env === "staging";
 
   // Keep direct Place reads compatible with production schema 008 until migration
-  // 009 is applied. The database provenance column becomes authoritative after
-  // migration; these stable UUIDs are only a safe rollout fallback.
+  // 009 is applied. Stable fixture UUIDs provide a safe rollout fallback.
   const placesQuery = db
     .from("places")
     .select("id,city_id,name,area,longitude,latitude,h3_parent")
@@ -108,35 +108,50 @@ export async function GET(request: Request) {
     });
   }
 
-  const posts = localPostSchema.array().safeParse(postsRes.data ?? []);
-  const communities = communitySchema
+  const parsedPosts = localPostSchema.array().safeParse(postsRes.data ?? []);
+  const parsedCommunities = communitySchema
     .array()
     .safeParse(communitiesRes.data ?? []);
-  const activities = signalSchema.array().safeParse(activitiesRes.data ?? []);
+  const parsedActivities = signalSchema
+    .array()
+    .safeParse(activitiesRes.data ?? []);
   const rawPlaces = (placesRes.data ?? [])
-    .filter(
-      (place) =>
-        (config.env !== "production" && config.env !== "staging") ||
-        !isKnownFixturePlace(place.id),
-    )
+    .filter((place) => !hosted || !isKnownFixturePlace(place.id))
     .map((place) => ({
       ...place,
       data_origin: isKnownFixturePlace(place.id)
         ? ("fixture" as const)
         : ("real" as const),
     }));
-  const places = socialMapPlaceSchema.array().safeParse(rawPlaces);
+  const parsedPlaces = socialMapPlaceSchema.array().safeParse(rawPlaces);
+
   if (
-    !posts.success ||
-    !communities.success ||
-    !activities.success ||
-    !places.success
+    !parsedPosts.success ||
+    !parsedCommunities.success ||
+    !parsedActivities.success ||
+    !parsedPlaces.success
   ) {
     return failure("Dữ liệu bản đồ xã hội chưa đúng định dạng.", 502);
   }
 
+  // Legacy discovery RPCs intentionally remain fixture-friendly for local/CI.
+  // Hosted product boundaries remove direct fixture-backed social inventory.
+  const posts = parsedPosts.data.filter(
+    (post) => !hosted || !post.place_id || !isKnownFixturePlace(post.place_id),
+  );
+  const communities = parsedCommunities.data.filter(
+    (community) =>
+      !hosted ||
+      !community.place_id ||
+      !isKnownFixturePlace(community.place_id),
+  );
+  const activities = parsedActivities.data.filter(
+    (activity) => !hosted || !isKnownFixturePlace(activity.place_id),
+  );
+  const places = parsedPlaces.data;
+
   const entities: SocialMapEntity[] = [
-    ...posts.data.map((post) => ({
+    ...posts.map((post) => ({
       id: post.id,
       kind: "local_post" as const,
       title: post.body.length > 72 ? `${post.body.slice(0, 69)}…` : post.body,
@@ -148,7 +163,7 @@ export async function GET(request: Request) {
       freshness: post.created_at,
       trust_state: null,
     })),
-    ...communities.data.map((community) => ({
+    ...communities.map((community) => ({
       id: community.id,
       kind: "community" as const,
       title: community.name,
@@ -160,7 +175,7 @@ export async function GET(request: Request) {
       freshness: community.created_at,
       trust_state: null,
     })),
-    ...activities.data.map((activity) => ({
+    ...activities.map((activity) => ({
       id: activity.id,
       kind: "activity" as const,
       title: activity.title,
@@ -172,7 +187,7 @@ export async function GET(request: Request) {
       freshness: activity.starts_at,
       trust_state: activity.confidence,
     })),
-    ...places.data.map((place) => ({
+    ...places.map((place) => ({
       id: place.id,
       kind: "place" as const,
       title: place.name,
@@ -188,16 +203,16 @@ export async function GET(request: Request) {
 
   return ok({
     mode: "live",
-    posts: posts.data,
-    communities: communities.data,
-    activities: activities.data,
-    places: places.data,
+    posts,
+    communities,
+    activities,
+    places,
     entities,
     counts: {
-      local_post: posts.data.length,
-      community: communities.data.length,
-      activity: activities.data.length,
-      place: places.data.length,
+      local_post: posts.length,
+      community: communities.length,
+      activity: activities.length,
+      place: places.length,
     },
   });
 }
