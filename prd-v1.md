@@ -346,13 +346,18 @@ Requirements:
 - a follow does not grant private-location access
 - map ranking must not become follower-only; geographic relevance remains foundational
 
+Current graph edges include:
+
+- person follows person
+- user joins/leaves Community
+
 Future graph edges may include:
 
-- user joins/follows community
+- user follows Community separately from membership
 - user follows place
 - user follows area
 
-These require separate product decisions and should not be silently added to the first slice.
+These future edges require separate product decisions and should not be silently inferred from membership or location.
 
 ## 11. Local Posts discovery
 
@@ -459,7 +464,7 @@ Qualifying examples:
 
 - comment/reply on a relevant Local Post
 - follow a contributor after opening local content
-- join a Community when implemented
+- join a Community
 - join/go to an Activity
 - provide a valid post-activity confirmation
 
@@ -520,19 +525,22 @@ Continue measuring:
 - host supply tooling
 - moderation/reporting
 - privacy-preserving analytics
+- Local Posts anchored to approved public places or safe coarse areas
+- Local Post reactions, comments, reporting, and public contribution history
+- public social profiles and person follow/unfollow graph
+- map-native Communities with identity, membership, owner protection, member posting, and moderation
+- map discovery containing both Local Posts and Communities
+- optional Community linkage on Activity Signals at the database layer
 
-### Product direction defined but not yet implemented
+### Product direction defined but not yet fully implemented
 
-- Local Posts
-- comments/reactions
-- public social profiles beyond the current account identity
-- follow graph
-- Communities
 - rich social Place pages
-- unified multi-entity map layers
+- place and area following
 - social notifications
+- richer Community administration and roles UX
+- end-to-end Activity ↔ Community creation/discovery UX beyond the optional database linkage
 
-Documentation must not describe these planned modules as shipped features.
+Documentation must distinguish shipped modules from planned extensions and must not claim market validation that has not happened.
 
 ## 18. Rollout sequence
 
@@ -542,17 +550,21 @@ Documentation must not describe these planned modules as shipped features.
 - update agent instructions and architecture
 - keep Activity module stable
 
-### Phase B — Local Post social vertical slice
+### Phase B — Local Post social vertical slice — shipped
 
-Implement and validate:
+Implemented:
 
 `Post → map discovery → interaction → profile → follow`
 
-### Phase C — Communities
+This is technically shipped; real-world social validation is still pending.
 
-Introduce persistent community identity, membership, posts, and Activity integration only after the first social slice is measurable and safe.
+### Phase C — Communities — shipped core
 
-### Phase D — Rich Places and area following
+Implemented persistent Community identity, map discovery, membership, member-scoped Local Posts, moderation, and an optional Activity Signal database linkage. Richer Activity ↔ Community UX remains future work.
+
+This is technically shipped; real-world Community retention and safety validation is still pending.
+
+### Phase D — Rich Places and area following — next
 
 Test richer place social pages and persistent area relationships based on observed user behavior.
 
