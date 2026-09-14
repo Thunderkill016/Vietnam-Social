@@ -41,7 +41,7 @@ export const HCMC_CITY: CityConfig = {
   default_center: [106.675, 10.815], // Central urban corridor of HCMC
   default_zoom: 13,
   active: true,
-  launch_state: "live",
+  launch_state: "pilot",
   // Simplified operational boundary covering HCMC mainland core, suburbs, and Can Gio
   operational_bounds: {
     west: 106.35,
@@ -102,12 +102,107 @@ export type Place = {
   longitude: number;
   latitude: number;
   h3_parent: string;
+  enabled?: boolean;
 };
 
 export type Viewer = {
   id: string;
   role: "member" | "host" | "moderator";
   display_name: string;
+  organizer_label?: string;
+  bio?: string;
+  contact_channel?: string;
+  onboarded_at?: string | null;
+};
+
+export const hostInviteSchema = z.object({
+  id: z.string().uuid(),
+  status: z.enum(["pending", "accepted", "revoked", "expired"]),
+  expires_at: z.string(),
+  venue_id: z.string().uuid().nullable().optional(),
+  venue_name: z.string().nullable().optional(),
+  venue_area: z.string().nullable().optional(),
+  invited_email: z.string().email().nullable().optional(),
+});
+export type HostInvite = z.infer<typeof hostInviteSchema>;
+
+export const activityTemplateSchema = z.object({
+  id: z.string().uuid(),
+  place_id: z.string().uuid(),
+  place_name: z.string().optional(),
+  area: z.string().optional(),
+  title: z.string().min(1).max(100),
+  description: z.string().max(600).default(""),
+  category: z.enum(["sport", "music", "workshop", "community"]),
+  duration_minutes: z.number().default(120),
+  capacity_note: z.string().max(100).default(""),
+  created_at: z.string(),
+});
+export type ActivityTemplate = z.infer<typeof activityTemplateSchema>;
+
+export const venueSuggestionSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1).max(100),
+  area: z.string().min(1).max(100),
+  address: z.string().min(1).max(200),
+  longitude: z.number(),
+  latitude: z.number(),
+  status: z.enum(["pending", "approved", "rejected"]),
+  rejection_reason: z.string().optional(),
+});
+export type VenueSuggestion = z.infer<typeof venueSuggestionSchema>;
+
+export type EvidenceGateTarget = {
+  actual: number;
+  target: number;
+  status: "NOT STARTED" | "IN PROGRESS" | "PASS";
+};
+
+export type OpsDashboardMetrics = {
+  hosts: {
+    invited: number;
+    accepted: number;
+    onboarded: number;
+    published_at_least_one: number;
+    published_again: number;
+  };
+  venues: {
+    approved: number;
+    disabled: number;
+    pending_review: number;
+    host_linked: number;
+  };
+  supply: {
+    signals_created_7d: number;
+    signals_active_now: number;
+    by_category: Record<string, number>;
+    by_venue: Array<{ place_name: string; signal_count: number }>;
+    by_host: Array<{ display_name: string; signal_count: number }>;
+    by_day: Array<{ day: string; count: number }>;
+    zero_qualified_opens: Array<{
+      id: string;
+      title: string;
+      starts_at: string;
+    }>;
+  };
+  demand: {
+    users_exposed: number;
+    confirmed_real_world_actions: number;
+    returning_users: number;
+  };
+  evidence_gate: {
+    overall_status:
+      "NOT STARTED" | "IN PROGRESS" | "PASS" | "FAIL / INSUFFICIENT EVIDENCE";
+    host_target: EvidenceGateTarget;
+    supply_target: EvidenceGateTarget;
+    demand_target: EvidenceGateTarget;
+    action_target: EvidenceGateTarget;
+    return_target: EvidenceGateTarget;
+  };
+  moderation: {
+    reports_count: number;
+    not_there_count: number;
+  };
 };
 
 export const boundsSchema = z

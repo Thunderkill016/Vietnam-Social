@@ -41,6 +41,7 @@ import {
   filterSignals,
   isWithinCity,
   timeLabel,
+  type ActivityTemplate,
   type Bounds,
   type Category,
   type CityConfig,
@@ -49,7 +50,8 @@ import {
   type Viewer,
 } from "@/lib/domain";
 import { browserSupabase } from "@/lib/supabase";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, QUALIFIED_OPEN_THRESHOLD_MS } from "@/lib/analytics";
+import { OpsDashboardModal } from "./ops-dashboard";
 const ActivityMap = dynamic(
   () => import("./activity-map").then((m) => m.ActivityMap),
   {
@@ -184,6 +186,8 @@ export function Explore({ initialId }: { initialId?: string }) {
     [mobileView, setMobileView] = useState("list"),
     [truncated, setTruncated] = useState(false);
   const [moderationOpen, setModerationOpen] = useState(false);
+  const [opsOpen, setOpsOpen] = useState(false);
+  const qualifiedTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [reports, setReports] = useState<ModerationReport[]>([]);
   const [sort, setSort] = useState<"time" | "distance">("time");
   const selectedRef = useRef(selected);
@@ -293,6 +297,10 @@ export function Explore({ initialId }: { initialId?: string }) {
   }, [load]);
   const openSignal = useCallback(
     async (signal: Signal) => {
+      if (qualifiedTimerRef.current) {
+        clearTimeout(qualifiedTimerRef.current);
+        qualifiedTimerRef.current = null;
+      }
       const currentDetail = ++detailVersion.current;
       selectedRef.current = signal;
       setNotice("");
@@ -303,7 +311,21 @@ export function Explore({ initialId }: { initialId?: string }) {
         signal_id: signal.id,
         city_id: city.id,
         category: signal.category,
+        is_qualified: false,
+        duration_ms: 0,
       });
+      qualifiedTimerRef.current = setTimeout(() => {
+        if (selectedRef.current?.id === signal.id) {
+          trackEvent({
+            type: "signal_opened",
+            signal_id: signal.id,
+            city_id: city.id,
+            category: signal.category,
+            is_qualified: true,
+            duration_ms: QUALIFIED_OPEN_THRESHOLD_MS,
+          });
+        }
+      }, QUALIFIED_OPEN_THRESHOLD_MS);
       try {
         const result = await api<{ signal: Signal; state: SignalState | null }>(
           `/api/signals/${signal.id}`,
@@ -400,6 +422,18 @@ export function Explore({ initialId }: { initialId?: string }) {
     }
     setPending(true);
     setNotice("");
+    if (qualifiedTimerRef.current) {
+      clearTimeout(qualifiedTimerRef.current);
+      qualifiedTimerRef.current = null;
+      trackEvent({
+        type: "signal_opened",
+        signal_id: selected.id,
+        city_id: city.id,
+        category: selected.category,
+        is_qualified: true,
+        duration_ms: 1000,
+      });
+    }
     try {
       await api(`/api/signals/${selected.id}`, {
         method: "POST",
@@ -497,6 +531,16 @@ export function Explore({ initialId }: { initialId?: string }) {
               }}
             >
               Báo cáo
+            </button>
+          )}
+          {viewer?.role === "moderator" && (
+            <button
+              className="quiet-button"
+              onClick={() => setOpsOpen(true)}
+              title="Mở Bảng Vận Hành & Đo Lường Cung"
+            >
+              <ShieldCheck size={16} />
+              Vận hành
             </button>
           )}
           {viewer ? (
@@ -812,6 +856,10 @@ export function Explore({ initialId }: { initialId?: string }) {
         open={Boolean(selected)}
         onOpenChange={(open) => {
           if (!open) {
+            if (qualifiedTimerRef.current) {
+              clearTimeout(qualifiedTimerRef.current);
+              qualifiedTimerRef.current = null;
+            }
             detailVersion.current += 1;
             selectedRef.current = null;
             setSelected(null);
@@ -954,15 +1002,32 @@ export function Explore({ initialId }: { initialId?: string }) {
                       type: "share_clicked",
                       signal_id: selected.id,
                       city_id: city.id,
+                      is_qualified: true,
                     });
-                    await navigator.clipboard.writeText(
-                      `${window.location.origin}/s/${selected.id}`,
-                    );
-                    setNotice("Đã sao chép liên kết.");
-                  } catch {
-                    setNotice(
-                      `Liên kết: ${window.location.origin}/s/${selected.id}`,
-                    );
+                    const shareUrl = `${window.location.origin}/s/${selected.id}`;
+                    if (typeof navigator !== "undefined" && navigator.share) {
+                      await navigator.share({
+                        title: selected.title,
+                        text: `${selected.title} tại ${selected.place_name}`,
+                        url: shareUrl,
+                      });
+                    } else {
+                      await navigator.clipboard.writeText(shareUrl);
+                      setNotice("Đã sao chép liên kết.");
+                    }
+                  } catch (e: unknown) {
+                    if ((e as Error)?.name !== "AbortError") {
+                      try {
+                        await navigator.clipboard.writeText(
+                          `${window.location.origin}/s/${selected.id}`,
+                        );
+                        setNotice("Đã sao chép liên kết.");
+                      } catch {
+                        setNotice(
+                          `Liên kết: ${window.location.origin}/s/${selected.id}`,
+                        );
+                      }
+                    }
                   }
                 }}
               >
@@ -1073,6 +1138,7 @@ export function Explore({ initialId }: { initialId?: string }) {
             );
         }}
       />
+      <OpsDashboardModal open={opsOpen} setOpen={setOpsOpen} places={places} />
     </div>
   );
 }
@@ -1274,6 +1340,57 @@ function AuthModal({
     </Modal>
   );
 }
+function getQuickSlotTimes(
+  slot: "tonight" | "tomorrow_night" | "weekend_morning",
+) {
+  const now = new Date();
+  const utcOffset = 7 * 60; // UTC+7 in minutes
+  const clientOffset = -now.getTimezoneOffset(); // in minutes
+  const vnNow = new Date(now.getTime() + (utcOffset - clientOffset) * 60000);
+
+  const targetDate = new Date(vnNow);
+  let startHour = 18;
+  const startMinute = 0;
+  let endHour = 20;
+  const endMinute = 0;
+
+  if (slot === "tonight") {
+    if (vnNow.getHours() >= 18) {
+      startHour = Math.min(21, vnNow.getHours() + 1);
+      endHour = Math.min(23, startHour + 2);
+    } else {
+      startHour = 18;
+      endHour = 20;
+    }
+  } else if (slot === "tomorrow_night") {
+    targetDate.setDate(targetDate.getDate() + 1);
+    startHour = 18;
+    endHour = 20;
+  } else if (slot === "weekend_morning") {
+    const day = targetDate.getDay();
+    let daysUntilWeekend = 0;
+    if (day === 0) {
+      daysUntilWeekend = 6;
+    } else if (day === 6) {
+      daysUntilWeekend = 1;
+    } else {
+      daysUntilWeekend = 6 - day;
+    }
+    targetDate.setDate(targetDate.getDate() + daysUntilWeekend);
+    startHour = 9;
+    endHour = 11;
+  }
+
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const yyyy = targetDate.getFullYear();
+  const mm = pad(targetDate.getMonth() + 1);
+  const dd = pad(targetDate.getDate());
+
+  const start = `${yyyy}-${mm}-${dd}T${pad(startHour)}:${pad(startMinute)}`;
+  const end = `${yyyy}-${mm}-${dd}T${pad(endHour)}:${pad(endMinute)}`;
+  return { start, end };
+}
+
 function CreateModal({
   open,
   setOpen,
@@ -1293,14 +1410,96 @@ function CreateModal({
   onLogin: () => void;
   onCreated: (id: string) => Promise<void>;
 }) {
-  const [pending, setPending] = useState(false),
-    [error, setError] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
   const requestId = useRef<string | null>(null);
   const lastBody = useRef("");
   const allowed =
     ready &&
     mode === "live" &&
     (viewer?.role === "host" || viewer?.role === "moderator");
+
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState<Category>("sport");
+  const [placeId, setPlaceId] = useState("");
+  const [startsAt, setStartsAt] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
+  const [capacityNote, setCapacityNote] = useState("");
+  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
+
+  const [templates, setTemplates] = useState<ActivityTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [authorizedVenueIds, setAuthorizedVenueIds] = useState<string[]>([]);
+
+  const [showSuggest, setShowSuggest] = useState(false);
+  const [suggestName, setSuggestName] = useState("");
+  const [suggestAddress, setSuggestAddress] = useState("");
+  const [suggestArea, setSuggestArea] = useState("");
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestMessage, setSuggestMessage] = useState("");
+
+  useEffect(() => {
+    if (!open || !allowed) return;
+    void api<{ templates: ActivityTemplate[] }>("/api/host/templates")
+      .then((res) => setTemplates(res.templates || []))
+      .catch(() => setTemplates([]));
+
+    void api<{ places: Place[]; authorized_venue_ids: string[] }>("/api/venues")
+      .then((res) => setAuthorizedVenueIds(res.authorized_venue_ids || []))
+      .catch(() => setAuthorizedVenueIds([]));
+  }, [open, allowed]);
+
+  const handleApplyTemplate = (tid: string) => {
+    setSelectedTemplateId(tid);
+    const t = templates.find((item) => item.id === tid);
+    if (!t) return;
+    setTitle(t.title);
+    if (t.description) setDescription(t.description);
+    if (t.category) setCategory(t.category as Category);
+    if (t.place_id) setPlaceId(t.place_id);
+    if (t.capacity_note) setCapacityNote(t.capacity_note);
+  };
+
+  const handleApplyQuickSlot = (
+    slot: "tonight" | "tomorrow_night" | "weekend_morning",
+  ) => {
+    const { start, end } = getQuickSlotTimes(slot);
+    setStartsAt(start);
+    setExpiresAt(end);
+  };
+
+  const handleSuggestVenue = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSuggesting(true);
+    setSuggestMessage("");
+    try {
+      await api("/api/venues", {
+        method: "POST",
+        body: JSON.stringify({
+          action: "suggest",
+          name: suggestName,
+          address: suggestAddress,
+          area: suggestArea,
+        }),
+      });
+      setSuggestMessage("Đã gửi đề xuất! Người vận hành sẽ xem xét.");
+      setSuggestName("");
+      setSuggestAddress("");
+      setSuggestArea("");
+      setShowSuggest(false);
+    } catch (err: unknown) {
+      setSuggestMessage((err as Error).message);
+    } finally {
+      setSuggesting(false);
+    }
+  };
+
+  const selectablePlaces =
+    viewer?.role === "host"
+      ? places.filter((p) => authorizedVenueIds.includes(p.id))
+      : places;
+
   return (
     <Modal
       open={open}
@@ -1315,20 +1514,15 @@ function CreateModal({
           if (!allowed) return;
           setPending(true);
           setError("");
-          const form = new FormData(e.currentTarget);
           try {
             const fields = {
-              title: String(form.get("title")),
-              description: String(form.get("description")),
-              category: String(form.get("category")),
-              place_id: String(form.get("place_id")),
-              starts_at: new Date(
-                `${form.get("starts_at")}:00+07:00`,
-              ).toISOString(),
-              expires_at: new Date(
-                `${form.get("expires_at")}:00+07:00`,
-              ).toISOString(),
-              capacity_note: String(form.get("capacity_note")),
+              title: title.trim(),
+              description: description.trim(),
+              category,
+              place_id: placeId,
+              starts_at: new Date(`${startsAt}:00+07:00`).toISOString(),
+              expires_at: new Date(`${expiresAt}:00+07:00`).toISOString(),
+              capacity_note: capacityNote.trim(),
             };
             const serialized = JSON.stringify(fields);
             if (!requestId.current || lastBody.current !== serialized) {
@@ -1343,6 +1537,30 @@ function CreateModal({
               }),
             });
             requestId.current = null;
+
+            if (saveAsTemplate) {
+              await api("/api/host/templates", {
+                method: "POST",
+                body: JSON.stringify({
+                  name: fields.title,
+                  title: fields.title,
+                  description: fields.description,
+                  category: fields.category,
+                  place_id: fields.place_id,
+                  capacity_note: fields.capacity_note,
+                  default_duration_minutes: 120,
+                }),
+              }).catch(() => null);
+            }
+
+            trackEvent({
+              type: "signal_created",
+              signal_id: result.id,
+              city_id: "hcm",
+              category: fields.category,
+              from_template: Boolean(selectedTemplateId),
+            });
+
             await onCreated(result.id);
           } catch (e) {
             setError((e as Error).message);
@@ -1368,6 +1586,28 @@ function CreateModal({
             bạn có thể đăng hoạt động.
           </p>
         )}
+
+        {templates.length > 0 && (
+          <label>
+            Dùng mẫu hoạt động đã lưu
+            <span className="select-wrap">
+              <select
+                value={selectedTemplateId}
+                onChange={(e) => handleApplyTemplate(e.target.value)}
+                aria-label="Chọn mẫu hoạt động đã lưu"
+              >
+                <option value="">-- Chọn mẫu để điền nhanh --</option>
+                {templates.map((tmpl) => (
+                  <option key={tmpl.id} value={tmpl.id}>
+                    {tmpl.title} ({tmpl.category})
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={16} />
+            </span>
+          </label>
+        )}
+
         <label>
           Tên hoạt động
           <input
@@ -1375,6 +1615,8 @@ function CreateModal({
             required
             minLength={8}
             maxLength={100}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
             placeholder="Ví dụ: Cầu lông tối nay, còn 2 chỗ"
           />
         </label>
@@ -1382,7 +1624,12 @@ function CreateModal({
           <label>
             Loại hoạt động
             <span className="select-wrap">
-              <select name="category" aria-label="Loại hoạt động">
+              <select
+                name="category"
+                aria-label="Loại hoạt động"
+                value={category}
+                onChange={(e) => setCategory(e.target.value as Category)}
+              >
                 {Object.entries(CATEGORIES).map(([key, value]) => (
                   <option value={key} key={key}>
                     {value.label}
@@ -1399,14 +1646,15 @@ function CreateModal({
                 name="place_id"
                 aria-label="Địa điểm công cộng"
                 required
-                defaultValue=""
+                value={placeId}
+                onChange={(e) => setPlaceId(e.target.value)}
               >
                 <option value="" disabled>
                   Chọn địa điểm
                 </option>
-                {places.map((place) => (
+                {selectablePlaces.map((place) => (
                   <option value={place.id} key={place.id}>
-                    {place.name}
+                    {place.name} ({place.area})
                   </option>
                 ))}
               </select>
@@ -1414,14 +1662,137 @@ function CreateModal({
             </span>
           </label>
         </div>
+
+        {viewer?.role === "host" && selectablePlaces.length === 0 && (
+          <div className="ops-warning-banner" style={{ margin: "4px 0 10px" }}>
+            <span>Bạn chưa có địa điểm nào được ủy quyền.</span>
+            <button
+              type="button"
+              className="quick-slot-chip"
+              onClick={() => setShowSuggest(!showSuggest)}
+              style={{ marginTop: 6 }}
+            >
+              + Đề xuất địa điểm mới
+            </button>
+          </div>
+        )}
+
+        {showSuggest && (
+          <div
+            style={{
+              background: "#f8faf5",
+              border: "1px solid #dbe2d4",
+              borderRadius: 8,
+              padding: 12,
+              marginBottom: 12,
+            }}
+          >
+            <h4 style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 700 }}>
+              Đề xuất địa điểm mới
+            </h4>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <input
+                placeholder="Tên địa điểm (ví dụ: Sân Cầu Lông Kỳ Hòa)"
+                value={suggestName}
+                onChange={(e) => setSuggestName(e.target.value)}
+                required
+              />
+              <input
+                placeholder="Địa chỉ cụ thể"
+                value={suggestAddress}
+                onChange={(e) => setSuggestAddress(e.target.value)}
+                required
+              />
+              <input
+                placeholder="Khu vực / Quận (ví dụ: Quận 10)"
+                value={suggestArea}
+                onChange={(e) => setSuggestArea(e.target.value)}
+                required
+              />
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  className="quick-slot-chip"
+                  disabled={suggesting || !suggestName || !suggestAddress}
+                  onClick={handleSuggestVenue}
+                >
+                  {suggesting ? "Đang gửi…" : "Gửi đề xuất"}
+                </button>
+                <button
+                  type="button"
+                  className="outline-button"
+                  onClick={() => setShowSuggest(false)}
+                >
+                  Hủy
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {suggestMessage && (
+          <p className="inline-notice" style={{ margin: "4px 0" }}>
+            {suggestMessage}
+          </p>
+        )}
+
+        <div>
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: "#666",
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
+            Khung giờ hẹn nhanh:
+          </span>
+          <div className="quick-slots-row">
+            <button
+              type="button"
+              className="quick-slot-chip"
+              onClick={() => handleApplyQuickSlot("tonight")}
+            >
+              Tối nay 18:00 - 20:00
+            </button>
+            <button
+              type="button"
+              className="quick-slot-chip"
+              onClick={() => handleApplyQuickSlot("tomorrow_night")}
+            >
+              Tối mai 18:00 - 20:00
+            </button>
+            <button
+              type="button"
+              className="quick-slot-chip"
+              onClick={() => handleApplyQuickSlot("weekend_morning")}
+            >
+              Cuối tuần 09:00 - 11:00
+            </button>
+          </div>
+        </div>
+
         <div className="form-grid">
           <label>
             Bắt đầu (giờ Việt Nam)
-            <input name="starts_at" type="datetime-local" required />
+            <input
+              name="starts_at"
+              type="datetime-local"
+              required
+              value={startsAt}
+              onChange={(e) => setStartsAt(e.target.value)}
+            />
           </label>
           <label>
             Kết thúc (giờ Việt Nam)
-            <input name="expires_at" type="datetime-local" required />
+            <input
+              name="expires_at"
+              type="datetime-local"
+              required
+              value={expiresAt}
+              onChange={(e) => setExpiresAt(e.target.value)}
+            />
           </label>
         </div>
         <label>
@@ -1429,6 +1800,8 @@ function CreateModal({
           <input
             name="capacity_note"
             maxLength={100}
+            value={capacityNote}
+            onChange={(e) => setCapacityNote(e.target.value)}
             placeholder="Ví dụ: Còn 2 chỗ · chia tiền sân"
           />
         </label>
@@ -1438,16 +1811,37 @@ function CreateModal({
             name="description"
             maxLength={600}
             rows={3}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
             placeholder="Mọi người cần biết hoặc mang theo gì?"
           />
         </label>
+
+        <label
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            cursor: "pointer",
+            fontSize: 13,
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={saveAsTemplate}
+            onChange={(e) => setSaveAsTemplate(e.target.checked)}
+            style={{ width: "auto" }}
+          />
+          Lưu thành mẫu hoạt động để tạo lại nhanh lần sau
+        </label>
+
         <p className="footnote">
           Chỉ dùng địa điểm công cộng đã được duyệt. Hoạt động tự ẩn khi hết
           hạn, tối đa 24 giờ sau khi bắt đầu.
         </p>
         <button
           className="lime-button"
-          disabled={!allowed || pending || places.length === 0}
+          disabled={!allowed || pending || selectablePlaces.length === 0}
         >
           {pending ? "Đang đăng…" : "Đăng hoạt động"}
           <ArrowRight size={18} />

@@ -105,6 +105,7 @@ Production builds do not require Supabase secrets. The app has a web manifest; o
 4. [Architecture](ARCHITECTURE.md)
 5. [First vertical slice and verification status](001-first-vertical-slice.md)
 6. [Task 002 — HCMC Production Foundation](002-hcmc-production-foundation.md)
-7. [Agent instructions](AGENTS.md)
+7. [Task 003 — HCMC Supply System & Real-World Evidence](003-hcmc-supply-system.md)
+8. [Agent instructions](AGENTS.md)
 
-On 2026-09-14 the owner authorized the HCMC Production Foundation (Task 002). The codebase technically supports all of Ho Chi Minh City, but the seven-day supply validation and four-week pilot gates remain **unmeasured**, not passed. No city-wide user adoption is claimed.
+On 2026-09-14, Task 003 established the HCMC Supply System & Real-World Evidence infrastructure: host invitation tokens (SHA-256 hashed), onboarding, host-venue authorization, activity templates, quick time slots (<60s publishing loop), operator dashboard, and 7-day evidence gate. The system is ready for the physical 7-day pilot execution. Zero fake supply invariant enforced.

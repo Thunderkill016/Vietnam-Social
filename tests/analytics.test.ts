@@ -135,4 +135,50 @@ describe("analytics foundation & privacy invariants", () => {
       coarse_h3: "8665b5647ffffff",
     });
   });
+
+  it("determines qualified open deterministically (>=2000ms or explicit action)", async () => {
+    const { isQualifiedOpen, QUALIFIED_OPEN_THRESHOLD_MS } =
+      await import("../src/lib/analytics");
+    expect(QUALIFIED_OPEN_THRESHOLD_MS).toBe(2000);
+    expect(isQualifiedOpen(500, false)).toBe(false);
+    expect(isQualifiedOpen(1999, false)).toBe(false);
+    expect(isQualifiedOpen(2000, false)).toBe(true);
+    expect(isQualifiedOpen(5000, false)).toBe(true);
+    expect(isQualifiedOpen(200, true)).toBe(true);
+    expect(isQualifiedOpen(0, true)).toBe(true);
+  });
+
+  it("supports supply pilot event properties (session_id, is_qualified, from_template)", () => {
+    trackEvent({
+      type: "signal_opened",
+      signal_id: "sig-pilot-1",
+      city_id: "hcm",
+      category: "sport",
+      session_id: "sess_custom_123",
+      is_qualified: true,
+      duration_ms: 2500,
+    });
+
+    trackEvent({
+      type: "signal_created",
+      signal_id: "sig-pilot-2",
+      city_id: "hcm",
+      category: "workshop",
+      from_template: true,
+      is_qualified: true,
+    });
+
+    expect(memoryAdapter.events).toHaveLength(2);
+    expect(memoryAdapter.events[0]).toMatchObject({
+      type: "signal_opened",
+      session_id: "sess_custom_123",
+      is_qualified: true,
+      duration_ms: 2500,
+    });
+    expect(memoryAdapter.events[1]).toMatchObject({
+      type: "signal_created",
+      from_template: true,
+      is_qualified: true,
+    });
+  });
 });

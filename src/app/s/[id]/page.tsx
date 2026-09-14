@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Explore } from "@/components/explore";
 import { requestSupabase } from "@/lib/supabase";
 import { demoSignals } from "@/lib/demo";
+import { timeLabel } from "@/lib/domain";
 export const dynamic = "force-dynamic";
 export async function generateMetadata({
   params,
@@ -17,13 +18,26 @@ export async function generateMetadata({
     ? (await db.rpc("get_signal", { p_id: id })).data
     : demoSignals().find((s) => s.id === id);
   if (!signal) return { title: "Hoạt động đã kết thúc — Vietnam Social" };
+  const timeText = timeLabel(signal.starts_at);
   const title = `${signal.title} — Vietnam Social`;
-  const description = `${signal.source_label} · ${signal.place_name}. ${signal.description}`;
+  const description =
+    `${signal.place_name} (${signal.area}) · ${timeText}. ${signal.capacity_note ? `${signal.capacity_note} · ` : ""}${signal.description || ""}`.trim();
+  const canonicalUrl = `https://vietnamsocial.app/s/${id}`;
   return {
     title,
     description,
-    openGraph: { title, description, type: "website" },
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      url: canonicalUrl,
+      locale: "vi_VN",
+      siteName: "Vietnam Social",
+    },
     twitter: { card: "summary", title, description },
+    alternates: {
+      canonical: canonicalUrl,
+    },
   };
 }
 export default async function SignalPage({

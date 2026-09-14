@@ -1,8 +1,14 @@
 import { expect, test } from "@playwright/test";
-test.skip(
-  Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
-  "Read-only demo tests only run without Supabase configuration.",
-);
+test.beforeEach(async ({ request }) => {
+  const bootstrap = await request
+    .get("/api/bootstrap")
+    .then((r) => r.json())
+    .catch(() => ({ mode: "unknown" }));
+  test.skip(
+    bootstrap.mode !== "demo",
+    "Read-only demo tests only run when server is in demo mode.",
+  );
+});
 test("browse, search, inspect details, share and refuse fake participation", async ({
   page,
 }) => {

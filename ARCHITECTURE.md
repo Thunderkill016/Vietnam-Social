@@ -107,4 +107,16 @@ The SQL projection computes confidence on read from unique current observations.
 - Structured logger: `src/lib/logger.ts` outputs machine-readable JSON in production with automatic recursive redaction of credentials, bearer tokens, service-role keys, and coordinate keys.
 - Environment security: `src/lib/env.ts` enforces fail-fast validation across `demo`, `local`, `staging`, and `production`. In production/staging, it guarantees HTTPS endpoints, bans localhost, and fails closed if any service-role or secret key is detected.
 
+## Task 003 — HCMC supply system & real-world evidence
+
+`supabase/migrations/202609140004_hcmc_supply_system.sql` introduces:
+
+- **Host Invites (`app_private.host_invites`):** SHA-256 token hashing, single-use acceptance, 7-day TTL, role elevation from `member` to `host`, preventing escalation to `moderator`.
+- **Profile Onboarding:** Extended `app_private.profiles` with `organizer_label`, `bio`, `contact_channel`, and `onboarded_at`.
+- **Host-Venue Authorization (`app_private.host_venue_memberships`):** Enforces that hosts can only publish signals at authorized public venues.
+- **Venue Suggestions (`app_private.venue_suggestions`):** Host queue for operator review, approval, and automated membership creation.
+- **Activity Templates (`app_private.activity_templates`):** Host-isolated templates enabling fast publishing (<60s) with one-click quick time slots.
+- **Analytics Events (`app_private.analytics_events`):** Privacy-preserving real-event logging (zero raw GPS), separating real usage from demo/test traffic.
+- **Operator Dashboard & 7-Day Evidence Gate:** Real-time RPC `supply_dashboard_metrics` tracking host conversion, venue coverage, supply density, qualified opens (>=2s or explicit action), and confirmed actions.
+
 Reference implementations used: [Next.js App Router](https://nextjs.org/docs/app/getting-started), [Supabase PostGIS](https://supabase.com/docs/guides/database/extensions/postgis), [database Broadcast](https://supabase.com/docs/guides/realtime/broadcast), and [MapLibre map initialization](https://maplibre.org/maplibre-gl-js/docs/examples/display-a-map/).
