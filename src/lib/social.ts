@@ -60,7 +60,8 @@ export const createLocalPostSchema = z
   })
   .strict()
   .superRefine((value, ctx) => {
-    const targets = Number(Boolean(value.place_id)) + Number(Boolean(value.area));
+    const targets =
+      Number(Boolean(value.place_id)) + Number(Boolean(value.area));
     if (targets !== 1) {
       ctx.addIssue({
         code: "custom",
@@ -79,7 +80,11 @@ export const localPostActionSchema = z
   .strict()
   .superRefine((value, ctx) => {
     if (value.action === "comment" && (!value.body || value.body.length < 1)) {
-      ctx.addIssue({ code: "custom", message: "Bình luận không được để trống.", path: ["body"] });
+      ctx.addIssue({
+        code: "custom",
+        message: "Bình luận không được để trống.",
+        path: ["body"],
+      });
     }
   });
 
@@ -98,7 +103,10 @@ export const publicProfileSchema = z.object({
 export type PublicProfile = z.infer<typeof publicProfileSchema>;
 
 export function localPostAge(iso: string) {
-  const minutes = Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / 60_000));
+  const minutes = Math.max(
+    0,
+    Math.floor((Date.now() - Date.parse(iso)) / 60_000),
+  );
   if (minutes < 1) return "vừa xong";
   if (minutes < 60) return `${minutes} phút trước`;
   const hours = Math.floor(minutes / 60);

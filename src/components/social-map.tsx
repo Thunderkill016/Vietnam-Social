@@ -55,7 +55,10 @@ export function SocialMap({
         setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
         const initial = initialBoundsRef.current;
         const center: [number, number] = initial
-          ? [(initial.west + initial.east) / 2, (initial.south + initial.north) / 2]
+          ? [
+              (initial.west + initial.east) / 2,
+              (initial.south + initial.north) / 2,
+            ]
           : city.default_center;
         const margin = 0.05;
         instance = new Map({
@@ -66,14 +69,23 @@ export function SocialMap({
           minZoom: 10,
           maxZoom: 17,
           maxBounds: [
-            [city.operational_bounds.west - margin, city.operational_bounds.south - margin],
-            [city.operational_bounds.east + margin, city.operational_bounds.north + margin],
+            [
+              city.operational_bounds.west - margin,
+              city.operational_bounds.south - margin,
+            ],
+            [
+              city.operational_bounds.east + margin,
+              city.operational_bounds.north + margin,
+            ],
           ],
           attributionControl: { compact: true },
         });
         map.current = instance;
         setMapReady(true);
-        instance.addControl(new NavigationControl({ showCompass: false }), "bottom-right");
+        instance.addControl(
+          new NavigationControl({ showCompass: false }),
+          "bottom-right",
+        );
         instance.on("load", () => {
           setLoaded(true);
           setFailed(false);
@@ -114,7 +126,10 @@ export function SocialMap({
       button.type = "button";
       button.className = `${styles.mapPin} ${selectedId === post.id ? styles.mapPinSelected : ""}`;
       button.textContent = PIN_LABEL[post.post_type];
-      button.setAttribute("aria-label", `Mở bài của ${post.author.display_name} tại ${post.area}`);
+      button.setAttribute(
+        "aria-label",
+        `Mở bài của ${post.author.display_name} tại ${post.area}`,
+      );
       button.addEventListener("click", () => selectRef.current(post));
       return new Marker({ element: button, anchor: "bottom" })
         .setLngLat([post.longitude, post.latitude])
@@ -125,14 +140,23 @@ export function SocialMap({
 
   return (
     <div className={styles.mapWrap}>
-      <div ref={container} className={styles.mapCanvas} aria-label="Bản đồ xã hội TP. Hồ Chí Minh" />
-      {!loaded && !failed && <div className={styles.mapStatus}>Đang tải bản đồ xã hội…</div>}
+      <div
+        ref={container}
+        className={styles.mapCanvas}
+        aria-label="Bản đồ xã hội TP. Hồ Chí Minh"
+      />
+      {!loaded && !failed && (
+        <div className={styles.mapStatus}>Đang tải bản đồ xã hội…</div>
+      )}
       {failed && (
         <div className={styles.mapWarning} role="status">
-          <AlertCircle size={18} /> Không tải được nền bản đồ. Danh sách bài địa phương vẫn dùng được.
+          <AlertCircle size={18} /> Không tải được nền bản đồ. Danh sách bài địa
+          phương vẫn dùng được.
         </div>
       )}
-      <div className={styles.mapLabel}>SOCIAL MAP · <strong>{city.name}</strong></div>
+      <div className={styles.mapLabel}>
+        SOCIAL MAP · <strong>{city.name}</strong>
+      </div>
     </div>
   );
 }
