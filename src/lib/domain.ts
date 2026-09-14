@@ -38,10 +38,11 @@ export const HCMC_CITY: CityConfig = {
   name: "TP. Hồ Chí Minh",
   country_code: "VN",
   timezone: "Asia/Ho_Chi_Minh",
-  default_center: [106.675, 10.815],
+  default_center: [106.675, 10.815], // Central urban corridor of HCMC
   default_zoom: 13,
   active: true,
   launch_state: "pilot",
+  // Simplified operational boundary covering HCMC mainland core, suburbs, and Can Gio
   operational_bounds: {
     west: 106.35,
     south: 10.35,
@@ -57,25 +58,23 @@ export const SUPPORTED_CITIES: Record<string, CityConfig> = {
 export const DEFAULT_CITY = HCMC_CITY;
 export const DEFAULT_CENTER: [number, number] = HCMC_CITY.default_center;
 export const HCMC_BOUNDS = HCMC_CITY.operational_bounds;
-export const PILOT = HCMC_BOUNDS;
+export const PILOT = HCMC_BOUNDS; // Compatibility alias for previous callers
 
-/**
- * Stable local/CI Place fixture identities. Names are deliberately not used as
- * evidence classification because presentation copy is mutable.
- */
+/** Stable local/CI fixture identities; names are deliberately not authoritative. */
 export const FIXTURE_PLACE_IDS = new Set([
   "10000000-0000-4000-8000-000000000001",
   "10000000-0000-4000-8000-000000000002",
   "10000000-0000-4000-8000-000000000003",
 ]);
-
 export function isKnownFixturePlace(id: string): boolean {
   return FIXTURE_PLACE_IDS.has(id);
 }
 
 export const MAX_RESULTS = 100;
+// A six-hour discovery window and 24-hour lifetime come from PRD sections 2/10.
 export const DISCOVERY_HOURS = 6;
 export const MAX_LIFETIME_HOURS = 24;
+// Polling recovers missed broadcasts; server-side filtering owns validity.
 export const REFRESH_MS = 15_000;
 export const CONFIDENCE_LABELS = {
   unconfirmed: "Chưa xác nhận",
@@ -204,10 +203,7 @@ export type OpsDashboardMetrics = {
   };
   evidence_gate: {
     overall_status:
-      | "NOT STARTED"
-      | "IN PROGRESS"
-      | "PASS"
-      | "FAIL / INSUFFICIENT EVIDENCE";
+      "NOT STARTED" | "IN PROGRESS" | "PASS" | "FAIL / INSUFFICIENT EVIDENCE";
     host_target: EvidenceGateTarget;
     supply_target: EvidenceGateTarget;
     demand_target: EvidenceGateTarget;
@@ -275,48 +271,49 @@ export const actionSchema = z
   })
   .strict();
 
-export const boundsKey = (b: Bounds) =>
-  `${b.city_id ?? "hcm"}:${b.west.toFixed(4)}:${b.south.toFixed(4)}:${b.east.toFixed(4)}:${b.north.toFixed(4)}`;
-
 export function isWithinCity(
-  [lng, lat]: [number, number],
+  coords: [number, number],
   city: CityConfig = HCMC_CITY,
-) {
-  const b = city.operational_bounds;
-  return lng >= b.west && lng <= b.east && lat >= b.south && lat <= b.north;
+): boolean {
+  const [lng, lat] = coords;
+  const { west, south, east, north } = city.operational_bounds;
+  return lng >= west && lng <= east && lat >= south && lat <= north;
 }
 
-export function distanceKm(
-  [lng1, lat1]: [number, number],
-  [lng2, lat2]: [number, number],
+export function filterSignals(
+  signals: Signal[],
+  category: string,
+  query: string,
 ) {
-  const r = 6371;
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1),
-    dLng = toRad(lng2 - lng1);
+  const normalize = (value: string) =>
+    value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d")
+      .toLowerCase();
+  const search = normalize(query.trim());
+  return signals.filter(
+    (s) =>
+      (category === "all" || s.category === category) &&
+      normalize(`${s.title} ${s.place_name} ${s.area}`).includes(search),
+  );
+}
+
+export function timeLabel(iso: string) {
+  return new Intl.DateTimeFormat("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Asia/Ho_Chi_Minh",
+  }).format(new Date(iso));
+}
+
+export function distanceKm(from: [number, number], to: [number, number]) {
+  const rad = Math.PI / 180;
+  const earthRadiusKm = 6371;
+  const dLat = (to[1] - from[1]) * rad,
+    dLng = (to[0] - from[0]) * rad;
   const a =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLng / 2) ** 2;
-  return 2 * r * Math.asin(Math.sqrt(a));
-}
-
-export function timeLabel(starts: string) {
-  const diff = (new Date(starts).getTime() - Date.now()) / 60000;
-  if (diff <= 0) return "Đang diễn ra";
-  if (diff < 60) return `Còn ${Math.ceil(diff)} phút`;
-  return `Còn ${Math.ceil(diff / 60)} giờ`;
-}
-
-export function filterSignals(signals: Signal[], category: string, query: string) {
-  const normalizedQuery = query.trim().toLocaleLowerCase("vi");
-  return signals.filter(
-    (signal) =>
-      (category === "all" || signal.category === category) &&
-      (!normalizedQuery ||
-        `${signal.title} ${signal.description} ${signal.place_name} ${signal.area}`
-          .toLocaleLowerCase("vi")
-          .includes(normalizedQuery)),
-  );
+    Math.cos(from[1] * rad) * Math.cos(to[1] * rad) * Math.sin(dLng / 2) ** 2;
+  return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
