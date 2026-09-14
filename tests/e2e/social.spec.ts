@@ -24,7 +24,9 @@ test("root is the map-native social network and does not fabricate social activi
   await expect(
     page.getByText("Chưa có lớp xã hội nào ở vùng này."),
   ).toBeVisible();
-  await expect(page.getByText("0 cộng đồng · 0 bài trong vùng bản đồ")).toBeVisible();
+  await expect(
+    page.getByText("0 cộng đồng · 0 bài trong vùng bản đồ"),
+  ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Xã hội", exact: true }),
   ).toBeVisible();
