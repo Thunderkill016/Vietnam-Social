@@ -28,47 +28,59 @@ select ok(
 
 set local role authenticated;
 set local request.jwt.claim.sub='20000000-0000-4000-8000-000000000201';
-
 select lives_ok(
   $$select public.create_local_post('{"request_id":"30000000-0000-4000-8000-000000000201","post_type":"question","body":"Tối nay khu Quận 1 có hoạt động cộng đồng nào không?","area":"Quận 1"}'::jsonb)$$,
   'ordinary authenticated member can create an area-scoped Local Post without operator approval'
 );
 
+reset role;
 select is(
   (select count(*) from app_private.local_posts where author_id='20000000-0000-4000-8000-000000000201'),
   1::bigint,
   'Local Post is stored once'
 );
-
-select is(
-  public.create_local_post('{"request_id":"30000000-0000-4000-8000-000000000201","post_type":"question","body":"Tối nay khu Quận 1 có hoạt động cộng đồng nào không?","area":"Quận 1"}'::jsonb),
-  (select id from app_private.local_posts where author_id='20000000-0000-4000-8000-000000000201'),
-  'create_local_post retries are idempotent'
+select set_config(
+  'app.test_social_post_id',
+  (select id::text from app_private.local_posts where author_id='20000000-0000-4000-8000-000000000201'),
+  true
 );
 
+set local role authenticated;
+set local request.jwt.claim.sub='20000000-0000-4000-8000-000000000201';
+select lives_ok(
+  $$select public.create_local_post('{"request_id":"30000000-0000-4000-8000-000000000201","post_type":"question","body":"Tối nay khu Quận 1 có hoạt động cộng đồng nào không?","area":"Quận 1"}'::jsonb)$$,
+  'create_local_post retry succeeds idempotently'
+);
+
+reset role;
+select is(
+  (select count(*) from app_private.local_posts where author_id='20000000-0000-4000-8000-000000000201'),
+  1::bigint,
+  'create_local_post retry does not duplicate data'
+);
+
+set local role authenticated;
+set local request.jwt.claim.sub='20000000-0000-4000-8000-000000000201';
 select throws_ok(
   $$select public.create_local_post('{"request_id":"30000000-0000-4000-8000-000000000202","post_type":"question","body":"Không được nhận toạ độ từ client","area":"Quận 1","latitude":10.78}'::jsonb)$$,
   'VS005',
   'unknown fields',
   'raw client coordinate fields are rejected by the creation RPC'
 );
-
 select ok(
   jsonb_array_length(public.discover_local_posts('{"west":106.65,"south":10.75,"east":106.75,"north":10.82,"city_id":"hcm"}'::jsonb)) >= 1,
   'Local Post is discoverable from its map viewport'
 );
-
 select lives_ok(
-  format('select public.toggle_local_post_reaction(%L::uuid)', (select id::text from app_private.local_posts where author_id='20000000-0000-4000-8000-000000000201')),
+  format('select public.toggle_local_post_reaction(%L::uuid)', current_setting('app.test_social_post_id')),
   'author can use the idempotent reaction toggle'
 );
 
 set local request.jwt.claim.sub='20000000-0000-4000-8000-000000000202';
 select lives_ok(
-  format('select public.comment_local_post(%L::uuid,%L)', (select id::text from app_private.local_posts where author_id='20000000-0000-4000-8000-000000000201'), 'Mình cũng đang muốn biết.'),
+  format('select public.comment_local_post(%L::uuid,%L)', current_setting('app.test_social_post_id'), 'Mình cũng đang muốn biết.'),
   'second member can comment on Local Post'
 );
-
 select is(
   (public.set_follow('20000000-0000-4000-8000-000000000201',true)->>'following'),
   'true',
@@ -85,17 +97,17 @@ select throws_ok(
   'cannot follow self',
   'self follow is forbidden'
 );
-
 select lives_ok(
-  format('select public.report_local_post(%L::uuid,%L)', (select id::text from app_private.local_posts where author_id='20000000-0000-4000-8000-000000000201'), 'Kiểm tra nội dung'),
+  format('select public.report_local_post(%L::uuid,%L)', current_setting('app.test_social_post_id'), 'Kiểm tra nội dung'),
   'report is accepted without automatically deleting the post'
 );
+
+reset role;
 select is(
-  (select moderation_state from app_private.local_posts where author_id='20000000-0000-4000-8000-000000000201'),
+  (select moderation_state from app_private.local_posts where id=current_setting('app.test_social_post_id')::uuid),
   'published',
   'a single report does not auto-delete or quarantine a Local Post'
 );
 
-reset role;
 select * from extensions.finish();
 rollback;
