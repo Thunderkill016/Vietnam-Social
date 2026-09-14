@@ -11,7 +11,7 @@ test.beforeEach(async ({ request }) => {
   );
 });
 
-test("root feels like one local social network and keeps honest empty inventory", async ({
+test("root stays useful while keeping empty inventory honest", async ({
   page,
 }) => {
   await page.goto("/");
@@ -32,6 +32,18 @@ test("root feels like one local social network and keeps honest empty inventory"
   await expect(
     page.getByPlaceholder("Tìm bài viết, cộng đồng, hoạt động, khu vực..."),
   ).toBeVisible();
+
+  const starter = page.getByRole("region", { name: "Bắt đầu khu vực này" });
+  await expect(starter).toBeVisible();
+  await expect(
+    starter.getByText("Khu vực này đang chờ người mở lời."),
+  ).toBeVisible();
+  await expect(
+    starter.getByRole("link", { name: /Chia sẻ điều bạn biết/ }),
+  ).toHaveAttribute("href", "/contribute");
+  await expect(
+    starter.getByRole("link", { name: /Tổ chức một cuộc gặp/ }),
+  ).toHaveAttribute("href", "/activities/manage");
 
   for (const label of [
     /^Quanh đây/,
@@ -65,6 +77,9 @@ test("social homepage fits a phone viewport and contribution flow remains reacha
   await expect(page.getByRole("button", { name: /^Quanh đây/ })).toBeVisible();
   await expect(
     page.getByPlaceholder("Tìm bài viết, cộng đồng, hoạt động, khu vực..."),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Bắt đầu khu vực này" }),
   ).toBeVisible();
   expect(
     await page.evaluate(

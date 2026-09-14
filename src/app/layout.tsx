@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./globals.css";
+import "./social-polish.css";
 
 const canonicalUrl = "https://vietnamsocial.vercel.app";
 
