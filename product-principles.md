@@ -1,51 +1,91 @@
 # Product Principles
 
-These principles are decision filters. A feature that violates them requires an explicit revision to the PRD.
+These principles are decision filters for Vietnam Social PRD v1. A feature that violates them requires an explicit product decision rather than being added silently.
 
-## 1. Map-first, action-first
+## 1. The map is home
 
-The map answers “what can I do nearby soon?” Every primary object must lead to a real-world action such as `join`, `go`, or `confirm`.
+Vietnam Social is not a conventional feed with a map tab. The primary discovery surface begins from a place or area and reveals relevant social context there.
 
-## 2. Signal, not post
+## 2. Location relevance can beat follower count
 
-A Signal describes a time-sensitive claim about an activity. It has a start, an expiry, a source, and a confidence state. It is not permanent social content.
+Useful local content should be discoverable because it matters to a place, even when the author has few followers. The product should not collapse into a follower-only distribution system.
 
-## 3. Density before coverage
+## 3. Map-native does not mean a live-person map
 
-A useful three-district map beats an empty national map. Expand only after the pilot cluster has repeat supply and demand.
+People are social identities, not continuously tracked markers. Never expose precise live user location by default. Attach public social objects to approved public places or appropriately coarse areas.
 
-## 4. Hosts before mass acquisition
+## 4. Five primitives, one map
 
-Organizers, venues, clubs, and community leaders create inventory and carry distribution. Recruit them before paying for broad consumer acquisition.
+The core social primitives are:
 
-## 5. Trust must be visible
+- People
+- Local Posts
+- Communities
+- Activities
+- Places
 
-Users must know who supplied a Signal, how fresh it is, and whether others confirmed it. Uncertainty is labeled, not hidden.
+The map connects them. Activity Signals remain important, but they are one primitive rather than the definition of the whole product.
 
-## 6. Every Signal dies
+## 5. Hyperlocal before globally viral
 
-Expiry is a product invariant. Confirmation can strengthen a Signal but cannot make it immortal.
+Content should gain value from place, area, time, community, or local audience relevance. Optimize first for making a map area useful, not for generating a global viral feed.
 
-## 7. Location is context, not surveillance
+## 6. Social should lead to meaningful action
 
-No public live-person map. No continuous tracking. Use exact location for public venues and approximate location for people-originated non-place activities.
+The umbrella loop is:
 
-## 8. Cold start is a product responsibility
+`Map → Discover → Connect → Participate → Contribute`
 
-Seed honest, sourced inventory through real hosts and structured public information. Never fabricate users, confirmations, or community posts.
+A useful interaction may be answering a local question, following a contributor, joining a community, attending an activity, visiting a place, or contributing useful context back to the map.
 
-## 9. One loop before many features
+## 7. Activities remain time-bounded Signals
 
-The MVP loop is `see → open → join/go → confirm → expire`. Chat, friends, feeds, commerce, and personalization wait until this loop is measured.
+Activities keep the existing Signal lifecycle: start, expiry, source, trust state, join/go, confirmation, moderation, and automatic disappearance from active queries.
 
-## 10. Real behavior beats vanity metrics
+Persistent social content such as Local Posts and Communities must not inherit Activity expiry rules unless their own product model requires it.
 
-Prioritize qualified Signal opens, join/go actions, arrival confirmations, repeat users, and host retention. Downloads and map impressions alone do not prove value.
+## 8. Open contribution with progressive trust
 
-## 11. Explain before automate
+Ordinary authenticated people should be able to contribute without requiring an operator to approve every normal action. Safety comes from server-owned authorization, rate limits, location constraints, moderation, quarantine, abuse controls, and progressive trust.
 
-Use deterministic confidence rules in the MVP. Introduce ML only after enough labeled behavior exists and an interpretable baseline is proven insufficient.
+Verified Hosts remain a valuable trust tier with stronger organizer capabilities, not the only people allowed to participate socially.
+
+## 9. Trust is visible and server-owned
+
+Users need context about who created content, how fresh it is, what place it belongs to, and whether it has been challenged or confirmed where relevant.
+
+Clients never authoritatively assign trust, moderation, role, or location authority.
+
+## 10. Product coverage and operations density are different
+
+Vietnam Social can support HCMC city-wide while community-building effort concentrates in selected dense areas. Do not permanently hard-code an operations cluster as the product boundary.
+
+Density still matters: an empty map is not useful. Build genuine local density without redefining the entire product around one district.
+
+## 11. Cold start must remain honest
+
+Never fabricate users, posts, communities, confirmations, engagement, or real-world attendance. Demo/test data must remain clearly separated from production evidence.
 
 ## 12. Privacy and safety are architecture
 
-Consent, minimization, RLS, moderation, retention, and deletion are not polish tasks. They are acceptance criteria for every vertical slice.
+Consent, minimization, RLS, moderation, retention, deletion, anti-abuse controls, and safe geographic precision are acceptance criteria, not polish.
+
+No continuous location tracking. No public precise-person map. Exact coordinates are appropriate for verified public places, not private homes or a person's live position.
+
+## 13. One social loop at a time
+
+The next social vertical slice is:
+
+`Create Local Post → discover on map → open → react/comment → profile → follow`
+
+Do not simultaneously build chat, stories, video feeds, marketplace, payments, recommendation ML, and every possible social feature.
+
+## 14. Real local behavior beats vanity metrics
+
+Prioritize meaningful local interactions, repeat contributors, follows that emerge from local discovery, community participation, Activity join/go/confirm, safety outcomes, and retention.
+
+Raw map views, likes, signups, and time spent alone do not prove Vietnam Social is useful.
+
+## 15. Explain before automate
+
+Use understandable ranking, trust, and moderation rules first. Introduce machine learning only after there is enough real labeled behavior to show deterministic baselines are insufficient.

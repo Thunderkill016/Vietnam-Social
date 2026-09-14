@@ -1,8 +1,68 @@
 # Vietnam Social
 
-A map-first local activity app for one question: **What can I join or go to nearby in the next few hours?**
+**Vietnam Social is a map-native Vietnamese social network.**
 
-The current foundation covers **Ho Chi Minh City** with an operational boundary enforced by PostGIS, expanding from the initial 3-district pilot slice. A **Signal** is an expiring activity record anchored to an approved public venue, not a person's live location.
+The map is the primary social discovery surface connecting five primitives:
+
+- **People**
+- **Local Posts**
+- **Communities**
+- **Activities**
+- **Places**
+
+The product is designed to answer broader local-social questions than an activity finder alone:
+
+> What is happening here? What are people talking about? Which communities exist here? What can I join? Which places matter socially?
+
+The long-term ambition is to become **the social layer of the map of Vietnam**, starting with Ho Chi Minh City.
+
+See [PRODUCT.md](PRODUCT.md) and the canonical [PRD v1](prd-v1.md) before making product-scope decisions.
+
+## Current implementation status
+
+The repository currently implements the **Activities** primitive most deeply. The existing Activity system is not being discarded; it becomes one module of the broader social network.
+
+Today the shipped foundation includes:
+
+- HCMC map-first discovery
+- approved public places
+- expiring Activity Signals
+- join/go/confirm/not-there actions
+- trust and moderation controls
+- shareable Activity routes
+- host onboarding and venue authorization
+- activity templates and operator supply tools
+- privacy-preserving analytics
+
+Planned but **not yet shipped as complete social modules**:
+
+- Local Posts
+- comments/reactions
+- richer public social profiles
+- person follow graph
+- Communities
+- richer social Place pages
+- unified multi-entity map layers
+- social notifications
+
+The next social vertical slice defined by PRD v1 is:
+
+`Create Local Post → discover on map → open → react/comment → profile → follow`
+
+## Product principles
+
+The umbrella loop is:
+
+`Map → Discover → Connect → Participate → Contribute`
+
+Important boundaries:
+
+- map-first does **not** mean a public live-person map
+- location is social context, not surveillance
+- exact coordinates belong to approved public places, not private people or homes
+- product coverage can support HCMC city-wide while operations concentrate on dense areas
+- Activity Signals remain time-bounded; Local Posts and Communities have separate lifecycles
+- demo/test data must never masquerade as real social activity
 
 ## Environment modes
 
@@ -24,7 +84,7 @@ npm run dev
 
 Open **http://127.0.0.1:3000**. Without Supabase configuration, the app displays explicitly labeled, read-only sample activities. Names and venues are fictional; joining, confirming and publishing cannot create fake successes.
 
-The interface includes search, category filters, a MapLibre map, an accessible list, detail dialogs, shareable `/s/[id]` routes and mobile layouts. Location is optional, requested only on a button press, held in browser memory and never sent to the application backend or analytics. Basemap requests go directly to the configured tile provider.
+The current interface includes search, category filters, a MapLibre map, an accessible list, Activity detail dialogs, shareable `/s/[id]` routes and mobile layouts. Location is optional, requested only on a button press, held in browser memory and never sent to the application backend or analytics. Basemap requests go directly to the configured tile provider.
 
 ## Run with Supabase locally
 
@@ -38,15 +98,9 @@ npm run dev
 
 The helper writes only the local URL and public anon key to the ignored `.env.local`. Restart Next.js after changing environment variables. Inspect the local services using `npx supabase status`; Studio is normally at **http://127.0.0.1:54323**.
 
-Local seed data contains fictional test venues in HCMC and no activity inventory, users or endorsements. Register an account through the app. New accounts always have the `member` role. An operator can explicitly grant host access in the local Studio SQL editor:
+Local seed data contains fictional test venues in HCMC and no real social inventory, users or endorsements. Register an account through the app. New accounts currently have the `member` role. The existing Activity implementation still uses the Task 003 host authorization model until a separately reviewed migration changes that behavior.
 
-```sql
-update app_private.profiles
-set role = 'host', display_name = 'Host thử nghiệm'
-where id = (select id from auth.users where email = 'YOUR_LOCAL_TEST_EMAIL');
-```
-
-Use `moderator` only for an operator who needs the report queue and removal capability. Never put a service-role/secret key in a `NEXT_PUBLIC_*` variable.
+Use `moderator` only for an operator who needs moderation and operational capabilities. Never put a service-role/secret key in a `NEXT_PUBLIC_*` variable.
 
 ## Run with Hosted Supabase (Staging / Production)
 
@@ -66,7 +120,7 @@ npx supabase migration list
 npx supabase db push
 ```
 
-See the [Task 002 Deployment & Operations Runbook](002-hcmc-production-foundation.md) for full deployment details and rollback strategies.
+See the [Task 002 Deployment & Operations Runbook](002-hcmc-production-foundation.md) for deployment details and rollback strategies.
 
 ## Verification
 
@@ -75,37 +129,47 @@ npm run quality       # format, lint, strict typecheck, unit/API tests, producti
 npm run test:db       # real local PostGIS/RLS/RPC tests; requires Supabase running
 npx playwright install chromium
 npm run test:e2e      # browser tests; demo suite without Supabase configuration
-npm run db:types     # generate public database types from the running local database
+npm run db:types      # generate public database types from the running local database
 ```
 
-`.github/workflows/quality.yml` separates app/demo checks from a disposable local Supabase job. The latter runs real SQL tests and a two-session authenticated browser flow (publish → join → confirm → broadcast → expire), using test identities and a localhost-only database guard. It uploads browser evidence and generated database types.
+`.github/workflows/quality.yml` separates app/demo checks from a disposable local Supabase job. The database/live-flow job exercises the current Activity implementation with disposable test identities and a localhost-only database guard.
 
-For a fresh **disposable** local test database, `npm run db:reset` destroys its local contents and replays migrations/seeds. Do not run it on local data you need to keep, and never run it against hosted staging/production databases.
+For a fresh **disposable** local test database, `npm run db:reset` destroys its local contents and replays migrations/seeds. Do not run it on data you need to keep, and never run it against hosted staging/production databases.
 
-Production builds do not require Supabase secrets. The app has a web manifest; offline mutation queues and service-worker caching of live activities are intentionally absent.
+## Architecture boundaries
 
-## Implementation boundaries
-
-- Next.js 16 + strict TypeScript; Supabase Auth and database RPCs; PostGIS is the geo authority.
-- Client roles, coordinates, author identity and confidence are never accepted as publishing authority.
-- Only approved public venues are supported. Venues must be within the active city's operational boundary.
-- All application tables have RLS. Private profiles, actions and audit events are not exposed through the API schema.
-- Discovery is bounded to 100 results and six hours ahead. Expired, resolved, removed or disabled-venue activities are filtered by the database on every read and write.
-- Realtime broadcasts contain only an activity ID on a coarse H3 channel. Clients re-fetch after broadcasts/reconnects and every 15 seconds while visible. No client broadcast can establish truth.
-- Join/verification/report retries are idempotent. One verification per user can be corrected; users cannot vote both ways or confirm their own activity.
-- Privacy-preserving analytics: 12 strongly typed event contracts enforce zero raw GPS coordinates (`latitude`, `longitude`, `coords`) in telemetry.
-- Structured observability: automatic redaction of secrets, tokens, credentials, and coordinates.
-- Honest empty-area UX: no artificial mock activities when an area has zero live Signals.
+- Next.js 16 + strict TypeScript; Supabase Auth and database RPCs; PostGIS remains the geographic authority.
+- The codebase remains a modular monolith.
+- Target domain modules include city, map, profiles, posts, social graph, communities, activities/signals, places, trust, moderation, analytics, and notifications when required.
+- Raw device GPS does not belong in analytics.
+- No continuous public person tracking.
+- All client-accessible tables require RLS and server-owned authorization.
+- Realtime is an invalidation/update mechanism; PostgreSQL remains source of truth.
+- H3 remains secondary to PostGIS for geographic truth.
+- The existing Activity discovery window, expiry, confidence, moderation, and venue protections stay intact until explicitly revised.
+- Future Local Posts must attach to a safe public place or appropriately coarse area; they must not expose a person's precise live position.
 
 ## Product documents
 
-1. [Competitive brief](competitive-brief.md)
-2. [Product principles](product-principles.md)
-3. [PRD and real-user validation gates](prd-v0.1.md)
+1. [Canonical product definition](PRODUCT.md)
+2. [PRD v1 — map-native social network](prd-v1.md)
+3. [Product principles](product-principles.md)
 4. [Architecture](ARCHITECTURE.md)
-5. [First vertical slice and verification status](001-first-vertical-slice.md)
-6. [Task 002 — HCMC Production Foundation](002-hcmc-production-foundation.md)
-7. [Task 003 — HCMC Supply System & Real-World Evidence](003-hcmc-supply-system.md)
-8. [Agent instructions](AGENTS.md)
+5. [Competitive brief](competitive-brief.md)
+6. [PRD v0.1 — historical Activity-first scope](prd-v0.1.md)
+7. [First vertical slice and verification status](001-first-vertical-slice.md)
+8. [Task 002 — HCMC Production Foundation](002-hcmc-production-foundation.md)
+9. [Task 003 — HCMC Supply System & Real-World Evidence](003-hcmc-supply-system.md)
+10. [Agent instructions](AGENTS.md)
 
-On 2026-09-14, Task 003 established the HCMC Supply System & Real-World Evidence infrastructure: host invitation tokens (SHA-256 hashed), onboarding, host-venue authorization, activity templates, quick time slots (<60s publishing loop), operator dashboard, and 7-day evidence gate. The system is ready for the physical 7-day pilot execution. Zero fake supply invariant enforced.
+## Product history
+
+The first implementation phase deliberately proved an Activity loop:
+
+`see → open → join/go → confirm → expire`
+
+Task 003 then added host acquisition, onboarding, venue authorization, templates, operator tooling, and real-vs-test evidence separation.
+
+Those systems remain useful. PRD v1 expands the product definition so Activity is now one social primitive inside a broader map-native network.
+
+**Market validation for the broader social-network vision has not yet passed. Documentation must not claim otherwise.**
