@@ -11,3 +11,4 @@ supabase/.temp/
 supabase/.branches/
 artifacts/
 public/maplibre/
+.vercel
