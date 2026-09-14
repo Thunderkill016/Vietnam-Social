@@ -50,11 +50,10 @@ select lives_ok(
 
 -- 4. Inspect Invite Token
 reset role;
-create temp table temp_invite as
-select (public.create_host_invite('{"venue_id":"10000000-0000-4000-8000-000000000101","note":"Invite for testing"}'::jsonb)->>'token') as token;
+select set_config('test.token', (public.create_host_invite('{"venue_id":"10000000-0000-4000-8000-000000000101","note":"Invite for testing"}'::jsonb)->>'token'), true);
 
 select is(
-  (select public.inspect_host_invite(token)->>'status' from temp_invite),
+  (public.inspect_host_invite(current_setting('test.token'))::jsonb->>'status'),
   'pending',
   'inspect_host_invite returns pending status for valid token'
 );
@@ -72,7 +71,7 @@ set local role authenticated;
 set local request.jwt.claim.sub='20000000-0000-4000-8000-000000000102';
 
 select is(
-  (select public.accept_host_invite(token)->>'success' from temp_invite),
+  (public.accept_host_invite(current_setting('test.token'))::jsonb->>'success'),
   'true',
   'member successfully accepts host invite'
 );
@@ -93,7 +92,7 @@ select is(
 
 -- 6. Idempotent acceptance for same user
 select is(
-  (select public.accept_host_invite(token)->>'already_accepted' from temp_invite),
+  (public.accept_host_invite(current_setting('test.token'))::jsonb->>'already_accepted'),
   'true',
   'same user re-accepting returns idempotent success'
 );
@@ -101,7 +100,7 @@ select is(
 -- 7. Second user cannot accept the same invite
 set local request.jwt.claim.sub='20000000-0000-4000-8000-000000000103';
 select throws_ok(
-  format('select public.accept_host_invite(%L)', (select token from temp_invite)),
+  format('select public.accept_host_invite(%L)', current_setting('test.token')),
   'VS005',
   'invite already accepted',
   'second user cannot claim already accepted invite'
