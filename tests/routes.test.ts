@@ -387,12 +387,12 @@ it("ops dashboard returns metrics for moderator role", async () => {
             total_qualified_opens: 40,
             total_confirmed_actions: 15,
           },
-          gate_7d: {
+          evidence_gate: {
             active_hosts: { actual: 3, target: 5, status: "IN PROGRESS" },
             recurrent_hosts: { actual: 2, target: 3, status: "IN PROGRESS" },
             active_venues: { actual: 3, target: 3, status: "PASS" },
-            confirmed_activities: { actual: 15, target: 10, status: "PASS" },
-            overall: "IN PROGRESS",
+            confirmed_actions: { actual: 15, target: 10, status: "PASS" },
+            overall_status: "IN PROGRESS",
           },
         },
         error: null,
@@ -419,8 +419,8 @@ it("ops dashboard returns metrics for moderator role", async () => {
   );
   expect(res.status).toBe(200);
   const body = await res.json();
-  expect(body.metrics.gate_7d.overall).toBe("IN PROGRESS");
-  expect(body.metrics.gate_7d.active_venues.status).toBe("PASS");
+  expect(body.metrics.evidence_gate.overall_status).toBe("IN PROGRESS");
+  expect(body.metrics.evidence_gate.active_venues.status).toBe("PASS");
 });
 
 it("records valid client analytics events via /api/events", async () => {
@@ -456,4 +456,21 @@ it("rejects invalid analytics event payload at API boundary", async () => {
     }),
   );
   expect(res.status).toBe(400);
+});
+
+it("ops dashboard preserves database denial for an ordinary authenticated user", async () => {
+  const rpc = vi.fn().mockResolvedValue({
+    data: null,
+    error: { message: "moderator required", code: "VS002" },
+  });
+  vi.mocked(requestSupabase).mockReturnValue({ rpc } as unknown as NonNullable<
+    ReturnType<typeof requestSupabase>
+  >);
+  const result = await OPS_DASHBOARD(
+    new Request("http://localhost/api/ops/dashboard", {
+      headers: { Authorization: "Bearer member" },
+    }),
+  );
+  expect(result.status).toBe(403);
+  expect(rpc).toHaveBeenCalledWith("supply_dashboard_metrics");
 });

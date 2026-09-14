@@ -229,6 +229,28 @@ test("two independent authenticated sessions: publish, join, confirm, broadcast 
     expect((await m.request.get(`/api/signals/${signalId}`)).status()).toBe(
       404,
     );
+    // E1.1: real HTTP authorization plus rendered fixture inventory in isolated DB.
+    expect((await m.request.get("/api/ops/dashboard")).status()).toBe(401);
+    expect(
+      (await m.request.get("/api/ops/dashboard", { headers })).status(),
+    ).toBe(403);
+    localSql(
+      `update app_private.profiles set role='moderator' where id='${hostId}'`,
+    );
+    await h.goto("/activities");
+    await h.getByRole("button", { name: "Vận hành", exact: true }).click();
+    await expect(
+      h.getByText("Host quay lại đăng", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      h.getByText("NOT STARTED", { exact: true }).first(),
+    ).toBeVisible();
+    await h.getByRole("button", { name: "Địa điểm", exact: true }).click();
+    await expect(
+      h.getByText("Địa điểm thật đang bật", { exact: true }),
+    ).toBeVisible();
+    await expect(h.getByText(/Fixture\/test: 3/)).toBeVisible();
+    await h.screenshot({ path: "artifacts/live-e11-operator-fixtures.png" });
   } finally {
     await hostContext.close();
     await memberContext.close();

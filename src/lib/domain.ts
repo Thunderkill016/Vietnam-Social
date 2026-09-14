@@ -179,6 +179,7 @@ export type OpsDashboardMetrics = {
   };
   venues: {
     approved: number;
+    fixture?: number;
     disabled: number;
     pending_review: number;
     host_linked: number;
@@ -202,6 +203,11 @@ export type OpsDashboardMetrics = {
     returning_users: number;
   };
   evidence_gate: {
+    definition?: "real_supply_v1";
+    active_hosts?: EvidenceGateTarget;
+    recurrent_hosts?: EvidenceGateTarget;
+    active_venues?: EvidenceGateTarget;
+    confirmed_actions?: EvidenceGateTarget;
     overall_status:
       "NOT STARTED" | "IN PROGRESS" | "PASS" | "FAIL / INSUFFICIENT EVIDENCE";
     host_target: EvidenceGateTarget;
