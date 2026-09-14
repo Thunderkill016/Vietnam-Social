@@ -34,7 +34,7 @@ select is(public.publish_signal(pg_temp.input()),public.publish_signal(pg_temp.i
 select throws_ok($$select public.publish_signal(pg_temp.input() || jsonb_build_object('request_id',gen_random_uuid(),'latitude',10.8))$$,'VS005','unknown fields','personal coordinates are rejected at database boundary');
 select throws_ok($$select public.publish_signal(pg_temp.input() || jsonb_build_object('request_id',gen_random_uuid(),'expires_at',now()+interval '25 hours'))$$,'VS005','invalid activity','database rejects excessive lifetime');
 select throws_ok($$select public.publish_signal(pg_temp.input() || jsonb_build_object('request_id',gen_random_uuid(),'expires_at',now()-interval '1 hour'))$$,'VS005','invalid time','database rejects expired creation');
-select throws_ok($$select public.publish_signal(pg_temp.input() || jsonb_build_object('request_id',gen_random_uuid(),'place_id',gen_random_uuid()))$$,'VS005','venue outside pilot','unknown venue rejected');
+select throws_ok($$select public.publish_signal(pg_temp.input() || jsonb_build_object('request_id',gen_random_uuid(),'place_id',gen_random_uuid()))$$,'VS005','venue outside city boundary','unknown venue rejected');
 select throws_ok($$select public.act_on_signal(public.publish_signal(pg_temp.input()),'confirm')$$,'VS004','self verification forbidden','host cannot self-confirm');
 select set_config('test.signal',public.publish_signal(pg_temp.input())::text,true);
 select is(public.get_signal(current_setting('test.signal')::uuid)->>'confidence','unconfirmed','host publication does not fabricate confidence');

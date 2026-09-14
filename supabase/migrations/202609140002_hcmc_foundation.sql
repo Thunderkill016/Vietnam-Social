@@ -11,7 +11,8 @@ alter table public.cities
   add column if not exists default_zoom integer not null default 13,
   add column if not exists active boolean not null default true,
   add column if not exists launch_state text not null default 'live' check (launch_state in ('pilot','live','inactive')),
-  add column if not exists operational_boundary extensions.geometry(Polygon,4326);
+  add column if not exists operational_boundary extensions.geometry(Polygon,4326),
+  alter column pilot_bounds drop not null;
 
 -- 2. Update canonical Ho Chi Minh City record with operational boundary
 -- Note: operational_boundary is a simplified operational envelope covering HCMC (urban core, suburban districts, and Can Gio)
