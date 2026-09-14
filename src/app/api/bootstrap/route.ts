@@ -1,6 +1,10 @@
 import { ok, failure } from "@/lib/api";
 import { demoSignals } from "@/lib/demo";
-import { HCMC_CITY, type CityConfig } from "@/lib/domain";
+import {
+  HCMC_CITY,
+  isKnownFixturePlace,
+  type CityConfig,
+} from "@/lib/domain";
 import { publicConfig } from "@/lib/env";
 import { requestSupabase } from "@/lib/supabase";
 
@@ -28,20 +32,15 @@ export async function GET() {
     return failure("Cấu hình Supabase không sẵn sàng.", 503);
   }
 
-  let placesQuery = db
-    .from("places")
-    .select("id,city_id,name,area,longitude,latitude,h3_parent,data_origin")
-    .eq("enabled", true)
-    .limit(100);
-
-  // Local/CI keeps deterministic fixture Places. Production/staging never presents
-  // them as genuine supply.
-  if (config.env === "production" || config.env === "staging") {
-    placesQuery = placesQuery.eq("data_origin", "real");
-  }
-
+  // Keep this read compatible with production schema 008 during the deploy/migrate
+  // transition. Migration 009 becomes authoritative after it is applied; until then
+  // the three immutable seed UUIDs are a safe compatibility exclusion.
   const [placesRes, cityRes] = await Promise.all([
-    placesQuery,
+    db
+      .from("places")
+      .select("id,city_id,name,area,longitude,latitude,h3_parent")
+      .eq("enabled", true)
+      .limit(100),
     db
       .from("cities")
       .select(
@@ -76,5 +75,19 @@ export async function GET() {
       }
     : HCMC_CITY;
 
-  return ok({ mode: "live", city, places: placesRes.data });
+  const places = (placesRes.data ?? [])
+    .filter(
+      (place) =>
+        config.env !== "production" &&
+        config.env !== "staging" ||
+        !isKnownFixturePlace(place.id),
+    )
+    .map((place) => ({
+      ...place,
+      data_origin: isKnownFixturePlace(place.id)
+        ? ("fixture" as const)
+        : ("real" as const),
+    }));
+
+  return ok({ mode: "live", city, places });
 }
