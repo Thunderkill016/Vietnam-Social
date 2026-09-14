@@ -258,7 +258,15 @@ export function Explore({ initialId }: { initialId?: string }) {
         .catch(() => setViewer(null));
     };
     refreshViewer();
-    const { data } = db.auth.onAuthStateChange(() => {
+    const { data } = db.auth.onAuthStateChange((event) => {
+      if (
+        event === "SIGNED_IN" &&
+        typeof window !== "undefined" &&
+        (window.location.search.includes("code=") ||
+          window.location.hash.includes("access_token="))
+      ) {
+        window.history.replaceState({}, "", window.location.pathname);
+      }
       queueMicrotask(refreshViewer);
     });
     return () => data.subscription.unsubscribe();
@@ -492,16 +500,29 @@ export function Explore({ initialId }: { initialId?: string }) {
             </button>
           )}
           {viewer ? (
-            <button
-              className="quiet-button account-button"
-              onClick={async () => {
-                await browserSupabase()?.auth.signOut();
-                setViewer(null);
-                setMyState(null);
-              }}
-            >
-              <LogOut size={17} /> Đăng xuất
-            </button>
+            <div className="viewer-account-group">
+              <span
+                className="viewer-badge"
+                title={`Tài khoản: ${viewer.display_name} (${viewer.role})`}
+              >
+                <span className="viewer-avatar-dot" />
+                <span className="viewer-name">{viewer.display_name}</span>
+                {viewer.role !== "member" && (
+                  <span className="role-tag">{viewer.role}</span>
+                )}
+              </span>
+              <button
+                className="quiet-button account-button"
+                onClick={async () => {
+                  await browserSupabase()?.auth.signOut();
+                  setViewer(null);
+                  setMyState(null);
+                }}
+                title="Đăng xuất"
+              >
+                <LogOut size={17} /> Đăng xuất
+              </button>
+            </div>
           ) : (
             <button
               className="quiet-button login-button"
@@ -1055,6 +1076,36 @@ export function Explore({ initialId }: { initialId?: string }) {
     </div>
   );
 }
+function GoogleIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      style={{ flexShrink: 0 }}
+    >
+      <path
+        fill="#4285F4"
+        d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.25 21.36 7.33 24 12 24Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.28 14.27a7.22 7.22 0 0 1 0-4.54V6.58H1.26a11.98 11.98 0 0 0 0 10.84l4.02-3.15Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.25 2.64 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98Z"
+      />
+    </svg>
+  );
+}
+
 function AuthModal({
   open,
   setOpen,
@@ -1066,7 +1117,43 @@ function AuthModal({
 }) {
   const [signup, setSignup] = useState(false),
     [pending, setPending] = useState(false),
+    [googlePending, setGooglePending] = useState(false),
     [message, setMessage] = useState("");
+
+  const handleGoogleSignIn = async () => {
+    setGooglePending(true);
+    setMessage("");
+    const db = browserSupabase();
+    if (!db) {
+      setMessage("Chưa kết nối Supabase.");
+      setGooglePending(false);
+      return;
+    }
+    const redirectTo =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/auth/callback`
+        : undefined;
+    try {
+      const { error } = await db.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
+        },
+      });
+      if (error) {
+        setMessage(error.message || "Không thể khởi động đăng nhập Google.");
+        setGooglePending(false);
+      }
+    } catch {
+      setMessage("Không thể kết nối dịch vụ xác thực Google.");
+      setGooglePending(false);
+    }
+  };
+
   return (
     <Modal
       open={open}
@@ -1087,82 +1174,102 @@ function AuthModal({
           </button>
         </div>
       ) : (
-        <form
-          className="stack-form"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            setPending(true);
-            setMessage("");
-            const values = new FormData(e.currentTarget);
-            const db = browserSupabase()!;
-            const credentials = {
-              email: String(values.get("email")),
-              password: String(values.get("password")),
-            };
-            try {
-              const result = signup
-                ? await db.auth.signUp(credentials)
-                : await db.auth.signInWithPassword(credentials);
-              if (result.error) {
-                setMessage(
-                  "Chưa đăng nhập được. Kiểm tra email, mật khẩu hoặc thư xác nhận.",
-                );
-              } else if (result.data.session) setOpen(false);
-              else setMessage("Kiểm tra email để xác nhận tài khoản.");
-            } catch {
-              setMessage("Mất kết nối. Vui lòng thử lại.");
-            } finally {
-              setPending(false);
-            }
-          }}
-        >
-          <label>
-            Email
-            <input
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              placeholder="ban@example.com"
-            />
-          </label>
-          <label>
-            Mật khẩu
-            <input
-              name="password"
-              type="password"
-              minLength={8}
-              maxLength={128}
-              autoComplete={signup ? "new-password" : "current-password"}
-              required
-            />
-          </label>
-          <p className="footnote">
-            Tài khoản mới có quyền thành viên. Quyền đăng hoạt động do người vận
-            hành cấp cho host.
-          </p>
-          <button className="lime-button" disabled={pending}>
-            {pending ? "Đang xử lý…" : signup ? "Tạo tài khoản" : "Đăng nhập"}
-            <ArrowRight size={18} />
-          </button>
+        <div className="stack-form">
           <button
-            className="quiet-button"
             type="button"
-            onClick={() => {
-              setSignup(!signup);
+            className="google-button"
+            disabled={pending || googlePending}
+            onClick={handleGoogleSignIn}
+          >
+            {googlePending ? (
+              <LoaderCircle className="spin" size={18} />
+            ) : (
+              <GoogleIcon />
+            )}
+            <span>{signup ? "Đăng ký với Google" : "Tiếp tục với Google"}</span>
+          </button>
+
+          <div className="auth-divider">
+            <span>hoặc với email</span>
+          </div>
+
+          <form
+            className="stack-form"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setPending(true);
               setMessage("");
+              const values = new FormData(e.currentTarget);
+              const db = browserSupabase()!;
+              const credentials = {
+                email: String(values.get("email")),
+                password: String(values.get("password")),
+              };
+              try {
+                const result = signup
+                  ? await db.auth.signUp(credentials)
+                  : await db.auth.signInWithPassword(credentials);
+                if (result.error) {
+                  setMessage(
+                    "Chưa đăng nhập được. Kiểm tra email, mật khẩu hoặc thư xác nhận.",
+                  );
+                } else if (result.data.session) setOpen(false);
+                else setMessage("Kiểm tra email để xác nhận tài khoản.");
+              } catch {
+                setMessage("Mất kết nối. Vui lòng thử lại.");
+              } finally {
+                setPending(false);
+              }
             }}
           >
-            {signup
-              ? "Đã có tài khoản? Đăng nhập"
-              : "Chưa có tài khoản? Đăng ký"}
-          </button>
+            <label>
+              Email
+              <input
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                placeholder="ban@example.com"
+              />
+            </label>
+            <label>
+              Mật khẩu
+              <input
+                name="password"
+                type="password"
+                minLength={8}
+                maxLength={128}
+                autoComplete={signup ? "new-password" : "current-password"}
+                required
+              />
+            </label>
+            <p className="footnote">
+              Tài khoản mới có quyền thành viên. Quyền đăng hoạt động do người
+              vận hành cấp cho host.
+            </p>
+            <button className="lime-button" disabled={pending || googlePending}>
+              {pending ? "Đang xử lý…" : signup ? "Tạo tài khoản" : "Đăng nhập"}
+              <ArrowRight size={18} />
+            </button>
+            <button
+              className="quiet-button"
+              type="button"
+              onClick={() => {
+                setSignup(!signup);
+                setMessage("");
+              }}
+            >
+              {signup
+                ? "Đã có tài khoản? Đăng nhập"
+                : "Chưa có tài khoản? Đăng ký"}
+            </button>
+          </form>
           {message && (
             <p role="status" className="inline-notice">
               {message}
             </p>
           )}
-        </form>
+        </div>
       )}
     </Modal>
   );

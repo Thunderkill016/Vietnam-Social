@@ -1,6 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 vi.mock("../src/lib/supabase", () => ({ requestSupabase: vi.fn(() => null) }));
 import { GET as BOOTSTRAP } from "../src/app/api/bootstrap/route";
+import { GET as AUTH_ME } from "../src/app/api/auth/me/route";
 import { GET, POST } from "../src/app/api/signals/route";
 import { POST as ACT } from "../src/app/api/signals/[id]/route";
 import { requestSupabase } from "../src/lib/supabase";
@@ -72,4 +73,52 @@ it("live database failures do not fall back to sample activity", async () => {
   const response = await GET(new Request("http://localhost/api/signals"));
   expect(response.status).toBe(503);
   expect(await response.json()).not.toHaveProperty("signals");
+});
+
+it("auth/me returns null viewer when unauthenticated or in demo mode", async () => {
+  const response = await AUTH_ME(new Request("http://localhost/api/auth/me"));
+  expect(response.status).toBe(200);
+  const body = await response.json();
+  expect(body.viewer).toBeNull();
+});
+
+it("auth/me returns viewer profile when bearer token is authenticated", async () => {
+  const rpc = vi.fn().mockResolvedValue({
+    data: { id: "user-123", role: "member", display_name: "Nguyễn Văn A" },
+    error: null,
+  });
+  vi.mocked(requestSupabase).mockReturnValue({ rpc } as unknown as NonNullable<
+    ReturnType<typeof requestSupabase>
+  >);
+  const response = await AUTH_ME(
+    new Request("http://localhost/api/auth/me", {
+      headers: { Authorization: "Bearer valid-token" },
+    }),
+  );
+  expect(response.status).toBe(200);
+  const body = await response.json();
+  expect(body.viewer).toEqual({
+    id: "user-123",
+    role: "member",
+    display_name: "Nguyễn Văn A",
+  });
+  expect(rpc).toHaveBeenCalledWith("viewer_profile");
+});
+
+it("auth/me returns 401 when token is expired or profile RPC fails", async () => {
+  const rpc = vi.fn().mockResolvedValue({
+    data: null,
+    error: { message: "JWT expired" },
+  });
+  vi.mocked(requestSupabase).mockReturnValue({ rpc } as unknown as NonNullable<
+    ReturnType<typeof requestSupabase>
+  >);
+  const response = await AUTH_ME(
+    new Request("http://localhost/api/auth/me", {
+      headers: { Authorization: "Bearer expired-token" },
+    }),
+  );
+  expect(response.status).toBe(401);
+  const body = await response.json();
+  expect(body.error).toContain("Phiên đăng nhập hết hạn");
 });
