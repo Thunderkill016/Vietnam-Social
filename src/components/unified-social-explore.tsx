@@ -18,20 +18,14 @@ import {
 } from "lucide-react";
 import {
   CATEGORIES,
+  CONFIDENCE_LABELS,
   HCMC_CITY,
   timeLabel,
   type Bounds,
   type CityConfig,
 } from "@/lib/domain";
-import {
-  LOCAL_POST_TYPES,
-  localPostAge,
-  type LocalPost,
-} from "@/lib/social";
-import {
-  COMMUNITY_CATEGORIES,
-  type Community,
-} from "@/lib/community";
+import { LOCAL_POST_TYPES, localPostAge, type LocalPost } from "@/lib/social";
+import { COMMUNITY_CATEGORIES, type Community } from "@/lib/community";
 import { trackEvent } from "@/lib/analytics";
 import {
   SOCIAL_MAP_FILTERS,
@@ -380,20 +374,17 @@ export function UnifiedSocialExplore({
           >
             <div className={styles.cardBody}>
               <div className={styles.identityRow}>
-                <span
-                  className={styles.entityAvatar}
-                  data-kind="community"
-                  aria-hidden="true"
-                >
-                  <Users size={18} />
+                <span className={styles.avatar} aria-hidden="true">
+                  {initials(community.creator.display_name)}
                 </span>
                 <span className={styles.identityText}>
-                  <strong>{community.name}</strong>
-                  <span>
-                    {COMMUNITY_CATEGORIES[community.category]} · {community.area}
-                  </span>
+                  <strong>{community.creator.display_name}</strong>
+                  <span>đang xây cộng đồng · {community.area}</span>
                 </span>
               </div>
+              <span className={styles.kindBadge}>
+                <Users size={12} /> {COMMUNITY_CATEGORIES[community.category]}
+              </span>
               <h3 className={styles.cardTitle}>{community.name}</h3>
               <p className={styles.cardText}>
                 {community.description ||
@@ -404,7 +395,7 @@ export function UnifiedSocialExplore({
                   <Users size={13} /> {community.member_count} thành viên
                 </span>
                 <span className={styles.metaItem}>
-                  bởi {community.creator.display_name}
+                  <MapPin size={13} /> {community.place_name || community.area}
                 </span>
               </div>
             </div>
@@ -450,7 +441,9 @@ export function UnifiedSocialExplore({
                 <span className={styles.metaItem}>
                   <MapPin size={13} /> {activity.place_name}
                 </span>
-                <span className={styles.metaItem}>{activity.confidence}</span>
+                <span className={styles.metaItem}>
+                  {CONFIDENCE_LABELS[activity.confidence]}
+                </span>
               </div>
             </div>
           </button>
@@ -517,6 +510,9 @@ export function UnifiedSocialExplore({
           <Link href="/" className={styles.navLink}>
             Khám phá
           </Link>
+          <Link href="/activities/manage" className={styles.navLink}>
+            <Activity size={15} /> Tổ chức hoạt động
+          </Link>
           <Link href="/following" className={styles.secondaryAction}>
             Đang theo dõi
           </Link>
@@ -528,7 +524,8 @@ export function UnifiedSocialExplore({
 
       {data.mode === "demo" && (
         <div className={styles.demoBanner}>
-          Bản xem trước không tạo người, bài viết hay hoạt động giả để lấp bản đồ.
+          Bản xem trước không tạo người, bài viết hay hoạt động giả để lấp bản
+          đồ.
         </div>
       )}
       {error && <div className={styles.errorBanner}>{error}</div>}
@@ -550,9 +547,7 @@ export function UnifiedSocialExplore({
             {SOCIAL_MAP_FILTERS.map((item) => {
               const Icon = FILTER_ICONS[item];
               const count =
-                item === "all"
-                  ? data.entities.length
-                  : data.counts[item];
+                item === "all" ? data.entities.length : data.counts[item];
               return (
                 <button
                   key={item}

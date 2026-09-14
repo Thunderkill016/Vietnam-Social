@@ -158,8 +158,8 @@ export function UnifiedSocialMap({
       )}
       {failed && (
         <div className={styles.mapWarning} role="status">
-          <AlertCircle size={18} /> Không tải được nền bản đồ. Bạn vẫn có thể xem
-          danh sách bên cạnh.
+          <AlertCircle size={18} /> Không tải được nền bản đồ. Bạn vẫn có thể
+          xem danh sách bên cạnh.
         </div>
       )}
       <div className={styles.mapLabel}>

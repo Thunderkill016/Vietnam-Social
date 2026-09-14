@@ -19,9 +19,12 @@ test("root feels like one local social network and keeps honest empty inventory"
     page.getByRole("heading", { name: "Khám phá quanh đây" }),
   ).toBeVisible();
   await expect(
-    page.getByText("Bản xem trước không tạo người, bài viết hay hoạt động giả", {
-      exact: false,
-    }),
+    page.getByText(
+      "Bản xem trước không tạo người, bài viết hay hoạt động giả",
+      {
+        exact: false,
+      },
+    ),
   ).toBeVisible();
   await expect(
     page.getByText("Chưa có câu chuyện nào ở vùng này."),
@@ -49,10 +52,9 @@ test("root feels like one local social network and keeps honest empty inventory"
   await expect(
     page.getByRole("heading", { name: "Khám phá quanh đây" }),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: /^Hoạt động/ })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expect(
+    page.getByRole("button", { name: /^Hoạt động/ }),
+  ).toHaveAttribute("aria-pressed", "true");
 });
 
 test("social homepage fits a phone viewport and contribution flow remains reachable", async ({
@@ -60,7 +62,9 @@ test("social homepage fits a phone viewport and contribution flow remains reacha
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await expect(page.getByRole("link", { name: "Vietnam Social" })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Vietnam Social" }),
+  ).toBeVisible();
   await expect(page.getByRole("button", { name: /^Quanh đây/ })).toBeVisible();
   expect(
     await page.evaluate(
@@ -68,7 +72,10 @@ test("social homepage fits a phone viewport and contribution flow remains reacha
     ),
   ).toBe(true);
 
-  await page.getByRole("link", { name: /Chia sẻ/ }).first().click();
+  await page
+    .getByRole("link", { name: /Chia sẻ/ })
+    .first()
+    .click();
   await expect(page).toHaveURL(/\/contribute$/);
   await page.getByRole("button", { name: "Đăng bài địa phương" }).click();
   await expect(
