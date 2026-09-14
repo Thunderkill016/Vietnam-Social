@@ -1144,7 +1144,7 @@ function CreateModal({
           <label>
             Loại hoạt động
             <span className="select-wrap">
-              <select name="category">
+              <select name="category" aria-label="Loại hoạt động">
                 {Object.entries(CATEGORIES).map(([key, value]) => (
                   <option value={key} key={key}>
                     {value.label}
@@ -1157,7 +1157,12 @@ function CreateModal({
           <label>
             Địa điểm công cộng
             <span className="select-wrap">
-              <select name="place_id" required defaultValue="">
+              <select
+                name="place_id"
+                aria-label="Địa điểm công cộng"
+                required
+                defaultValue=""
+              >
                 <option value="" disabled>
                   Chọn địa điểm
                 </option>

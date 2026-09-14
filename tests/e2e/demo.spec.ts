@@ -74,3 +74,78 @@ test("share route supplies item-specific metadata and desktop artifact", async (
   await page.keyboard.press("Escape");
   await page.screenshot({ path: "artifacts/desktop.png", fullPage: true });
 });
+
+test("map worker processes data without a third-party network dependency", async ({
+  page,
+}) => {
+  await page.route("https://tiles.openfreemap.org/**", async (route) => {
+    await route.fulfill({
+      json: {
+        version: 8,
+        sources: {
+          fixture: {
+            type: "geojson",
+            data: {
+              type: "FeatureCollection",
+              features: [
+                {
+                  type: "Feature",
+                  properties: {},
+                  geometry: { type: "Point", coordinates: [106.666, 10.817] },
+                },
+              ],
+            },
+          },
+        },
+        layers: [
+          {
+            id: "background",
+            type: "background",
+            paint: { "background-color": "#eef2e8" },
+          },
+          {
+            id: "fixture",
+            type: "circle",
+            source: "fixture",
+            paint: { "circle-radius": 8, "circle-color": "#19221f" },
+          },
+        ],
+      },
+    });
+  });
+  await page.goto("/");
+  await expect(page.locator(".map-canvas")).toHaveAttribute(
+    "data-state",
+    "ready",
+    { timeout: 15_000 },
+  );
+  await expect(
+    page.getByRole("button", {
+      name: "Xem Cầu lông tối nay, còn 2 chỗ",
+      exact: true,
+    }),
+  ).toBeAttached();
+});
+
+test("publishing form exposes unambiguous category and venue labels", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Đăng hoạt động", exact: true })
+    .click();
+  await page
+    .getByRole("combobox", { name: "Loại hoạt động", exact: true })
+    .selectOption("sport");
+  await page
+    .getByLabel("Địa điểm công cộng", { exact: true })
+    .selectOption("10000000-0000-4000-8000-000000000001");
+  await expect(
+    page.getByLabel("Địa điểm công cộng", { exact: true }),
+  ).toHaveValue("10000000-0000-4000-8000-000000000001");
+  await expect(
+    page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Đăng hoạt động", exact: true }),
+  ).toBeDisabled();
+});

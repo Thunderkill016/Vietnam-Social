@@ -40,8 +40,9 @@ export function ActivityMap({
     let instance: MapInstance | undefined;
     let timeout: ReturnType<typeof setTimeout> | undefined;
     void import("maplibre-gl")
-      .then(({ Map, NavigationControl }) => {
+      .then(({ Map, NavigationControl, setWorkerUrl }) => {
         if (disposed || !container.current) return;
+        setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
         instance = new Map({
           container: container.current,
           style: publicConfig().style,
@@ -61,7 +62,10 @@ export function ActivityMap({
           new NavigationControl({ showCompass: false }),
           "bottom-right",
         );
-        instance.on("error", () => setFailed(true));
+        instance.on("error", (event) => {
+          console.warn("Basemap error:", event.error.message);
+          setFailed(true);
+        });
         instance.on("load", () => {
           setFailed(false);
           setLoaded(true);
@@ -83,7 +87,11 @@ export function ActivityMap({
         observer = new ResizeObserver(() => instance?.resize());
         observer.observe(container.current);
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        console.warn(
+          "Map initialization failed:",
+          error instanceof Error ? error.message : "unknown error",
+        );
         if (!disposed) setFailed(true);
       });
     return () => {

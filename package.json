@@ -19,7 +19,9 @@
     "db:start": "supabase start",
     "db:reset": "supabase db reset --local",
     "db:types": "supabase gen types typescript --local > src/lib/database.types.ts",
-    "quality": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run build"
+    "quality": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run build",
+    "predev": "node scripts/copy-map-worker.mjs",
+    "prebuild": "node scripts/copy-map-worker.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.23",

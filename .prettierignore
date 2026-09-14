@@ -7,3 +7,4 @@ supabase/.temp
 supabase/.branches
 artifacts
 src/lib/database.types.ts
+public/maplibre/
