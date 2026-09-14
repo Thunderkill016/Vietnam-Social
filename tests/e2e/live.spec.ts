@@ -57,7 +57,7 @@ test("two independent authenticated sessions: publish, join, confirm, broadcast 
       [h, hostEmail],
       [m, memberEmail],
     ] as const) {
-      await page.goto("/");
+      await page.goto("/activities");
       await page
         .getByRole("button", { name: "Đăng nhập", exact: true })
         .click();
@@ -97,7 +97,6 @@ test("two independent authenticated sessions: publish, join, confirm, broadcast 
     await expect(
       h.getByRole("button", { name: "Đang diễn ra", exact: true }),
     ).toBeDisabled();
-    // Under the 15-second fallback interval: this assertion requires live broadcast delivery.
     await expect(
       m.getByRole("button", { name: new RegExp(`Thể thao.*${title}`) }),
     ).toBeVisible({ timeout: 8000 });

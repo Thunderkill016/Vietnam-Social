@@ -1,4 +1,5 @@
-import { Explore } from "@/components/explore";
+import { SocialExplore } from "@/components/social-explore";
+
 export default function Page() {
-  return <Explore />;
+  return <SocialExplore />;
 }

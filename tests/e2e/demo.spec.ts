@@ -12,7 +12,7 @@ test.beforeEach(async ({ request }) => {
 test("browse, search, inspect details, share and refuse fake participation", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("/activities");
   await expect(
     page.getByRole("heading", { name: "Một cuộc hẹn ở ngay gần bạn." }),
   ).toBeVisible();
@@ -53,7 +53,7 @@ test("mobile fits screen, supports list fallback and keyboard dialog", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
+  await page.goto("/activities");
   await expect(
     page.getByRole("button", { name: /Thể thao.*Cầu lông tối nay/ }),
   ).toBeVisible();
@@ -90,7 +90,6 @@ test("share route supplies item-specific metadata and desktop artifact", async (
   await page.keyboard.press("Escape");
   await page.screenshot({ path: "artifacts/desktop.png", fullPage: true });
 });
-
 test("map worker processes data without a third-party network dependency", async ({
   page,
 }) => {
@@ -129,7 +128,7 @@ test("map worker processes data without a third-party network dependency", async
       },
     });
   });
-  await page.goto("/");
+  await page.goto("/activities");
   await expect(page.locator(".map-canvas")).toHaveAttribute(
     "data-state",
     "ready",
@@ -142,11 +141,10 @@ test("map worker processes data without a third-party network dependency", async
     }),
   ).toBeAttached();
 });
-
 test("publishing form exposes unambiguous category and venue labels", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("/activities");
   await page
     .getByRole("button", { name: "Đăng hoạt động", exact: true })
     .click();
@@ -165,11 +163,12 @@ test("publishing form exposes unambiguous category and venue labels", async ({
       .getByRole("button", { name: "Đăng hoạt động", exact: true }),
   ).toBeDisabled();
 });
-
 test("displays honest empty state when viewport has no active signals", async ({
   page,
 }) => {
-  await page.goto("/?west=106.90&south=10.40&east=106.95&north=10.45");
+  await page.goto(
+    "/activities?west=106.90&south=10.40&east=106.95&north=10.45",
+  );
   await expect(
     page.getByRole("heading", {
       name: "Chưa có hoạt động đang diễn ra trong khu vực này.",
