@@ -22,6 +22,11 @@ export const localPostSchema = z.object({
   body: z.string(),
   place_id: z.uuid().nullable(),
   place_name: z.string(),
+  community: z
+    .object({ id: z.uuid(), name: z.string() })
+    .nullable()
+    .optional()
+    .default(null),
   area: z.string(),
   longitude: z.number(),
   latitude: z.number(),
@@ -57,15 +62,18 @@ export const createLocalPostSchema = z
     body: z.string().trim().min(8).max(800),
     place_id: z.uuid().optional(),
     area: z.string().trim().min(2).max(120).optional(),
+    community_id: z.uuid().optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
     const targets =
-      Number(Boolean(value.place_id)) + Number(Boolean(value.area));
+      Number(Boolean(value.place_id)) +
+      Number(Boolean(value.area)) +
+      Number(Boolean(value.community_id));
     if (targets !== 1) {
       ctx.addIssue({
         code: "custom",
-        message: "Chọn một địa điểm công cộng hoặc một khu vực.",
+        message: "Chọn một địa điểm công cộng, khu vực hoặc cộng đồng.",
         path: ["place_id"],
       });
     }

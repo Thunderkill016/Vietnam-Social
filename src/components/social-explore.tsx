@@ -15,6 +15,7 @@ import {
   Send,
   Sparkles,
   UserRound,
+  Users,
   X,
 } from "lucide-react";
 import {
@@ -31,6 +32,11 @@ import {
   type LocalPost,
   type LocalPostType,
 } from "@/lib/social";
+import {
+  COMMUNITY_CATEGORIES,
+  type Community,
+  type CommunityCategory,
+} from "@/lib/community";
 import { browserSupabase } from "@/lib/supabase";
 import styles from "./social-explore.module.css";
 
@@ -76,12 +82,14 @@ export function SocialExplore() {
   const [city, setCity] = useState<CityConfig>(HCMC_CITY);
   const [places, setPlaces] = useState<Place[]>([]);
   const [posts, setPosts] = useState<LocalPost[]>([]);
+  const [communities, setCommunities] = useState<Community[]>([]);
   const [bounds, setBounds] = useState<Bounds>(DEFAULT_BOUNDS);
   const [viewer, setViewer] = useState<Viewer | null>(null);
   const [mode, setMode] = useState<"demo" | "live">("demo");
   const [selected, setSelected] = useState<LocalPost | null>(null);
   const [comments, setComments] = useState<LocalComment[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
+  const [communityOpen, setCommunityOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -92,6 +100,15 @@ export function SocialExplore() {
   const [scope, setScope] = useState<"place" | "area">("area");
   const [placeId, setPlaceId] = useState("");
   const [area, setArea] = useState("");
+  const [communityName, setCommunityName] = useState("");
+  const [communityDescription, setCommunityDescription] = useState("");
+  const [communityCategory, setCommunityCategory] =
+    useState<CommunityCategory>("hobby");
+  const [communityScope, setCommunityScope] = useState<"place" | "area">(
+    "area",
+  );
+  const [communityPlaceId, setCommunityPlaceId] = useState("");
+  const [communityArea, setCommunityArea] = useState("");
 
   const areas = useMemo(
     () =>
@@ -111,12 +128,16 @@ export function SocialExplore() {
       setMode(result.mode);
       setCity(result.city);
       setPlaces(result.places);
-      if (!area && result.places[0]?.area) setArea(result.places[0].area);
-      if (!placeId && result.places[0]?.id) setPlaceId(result.places[0].id);
+      const firstArea = result.places[0]?.area;
+      const firstPlace = result.places[0]?.id;
+      if (!area && firstArea) setArea(firstArea);
+      if (!placeId && firstPlace) setPlaceId(firstPlace);
+      if (!communityArea && firstArea) setCommunityArea(firstArea);
+      if (!communityPlaceId && firstPlace) setCommunityPlaceId(firstPlace);
     } catch (e) {
       setError((e as Error).message);
     }
-  }, [area, placeId]);
+  }, [area, placeId, communityArea, communityPlaceId]);
 
   const loadViewer = useCallback(async () => {
     const db = browserSupabase();
@@ -137,20 +158,31 @@ export function SocialExplore() {
     }
   }, []);
 
-  const loadPosts = useCallback(async () => {
+  const loadSocial = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams(
         Object.entries(bounds).map(([key, value]) => [key, String(value)]),
       );
-      const result = await api<{ mode: "demo" | "live"; posts: LocalPost[] }>(
-        `/api/posts?${params}`,
+      const [postResult, communityResult] = await Promise.all([
+        api<{ mode: "demo" | "live"; posts: LocalPost[] }>(
+          `/api/posts?${params}`,
+        ),
+        api<{ mode: "demo" | "live"; communities: Community[] }>(
+          `/api/communities?${params}`,
+        ),
+      ]);
+      setMode(
+        postResult.mode === "live" || communityResult.mode === "live"
+          ? "live"
+          : "demo",
       );
-      setMode(result.mode);
-      setPosts(result.posts);
+      setPosts(postResult.posts);
+      setCommunities(communityResult.communities);
       setError("");
     } catch (e) {
       setPosts([]);
+      setCommunities([]);
       setError((e as Error).message);
     } finally {
       setLoading(false);
@@ -163,8 +195,8 @@ export function SocialExplore() {
   }, [loadBootstrap, loadViewer]);
 
   useEffect(() => {
-    void loadPosts();
-  }, [loadPosts]);
+    void loadSocial();
+  }, [loadSocial]);
 
   useEffect(() => {
     const db = browserSupabase();
@@ -283,12 +315,42 @@ export function SocialExplore() {
       setCreateOpen(false);
       setPostBody("");
       setNotice("Bài địa phương đã xuất hiện trên bản đồ.");
-      await loadPosts();
+      await loadSocial();
       const detail = await api<{ post: LocalPost; comments: LocalComment[] }>(
         `/api/posts/${result.id}`,
       );
       setSelected(detail.post);
       setComments(detail.comments);
+    } catch (e) {
+      setNotice((e as Error).message);
+    } finally {
+      setPending(false);
+    }
+  };
+
+  const createCommunity = async () => {
+    if (!viewer) {
+      await signIn();
+      return;
+    }
+    try {
+      setPending(true);
+      const result = await api<{ id: string }>("/api/communities", {
+        method: "POST",
+        body: JSON.stringify({
+          name: communityName,
+          description: communityDescription,
+          category: communityCategory,
+          ...(communityScope === "place"
+            ? { place_id: communityPlaceId }
+            : { area: communityArea }),
+        }),
+      });
+      setCommunityOpen(false);
+      setCommunityName("");
+      setCommunityDescription("");
+      await loadSocial();
+      window.location.assign(`/c/${result.id}`);
     } catch (e) {
       setNotice((e as Error).message);
     } finally {
@@ -333,6 +395,12 @@ export function SocialExplore() {
             </button>
           )}
           <button
+            className={styles.ghostButton}
+            onClick={() => (viewer ? setCommunityOpen(true) : void signIn())}
+          >
+            <Users size={17} /> Tạo cộng đồng
+          </button>
+          <button
             className={styles.primaryButton}
             onClick={() => (viewer ? setCreateOpen(true) : void signIn())}
           >
@@ -348,8 +416,8 @@ export function SocialExplore() {
           </span>
           <h1>Ở đây đang có chuyện gì?</h1>
           <p>
-            Khám phá câu hỏi, cập nhật và gợi ý gắn với những nơi thật quanh TP.
-            Hồ Chí Minh.
+            Khám phá tiếng nói, cộng đồng và hoạt động gắn với những nơi thật
+            quanh TP. Hồ Chí Minh.
           </p>
         </div>
         <div className={styles.legend}>
@@ -362,12 +430,16 @@ export function SocialExplore() {
           <span>
             <b>★</b> Gợi ý
           </span>
+          <span>
+            <b>C</b> Cộng đồng
+          </span>
         </div>
       </section>
 
       {mode === "demo" && (
         <div className={styles.demoBanner}>
-          Bản demo giữ bản đồ trống thay vì bịa bài đăng hoặc người dùng giả.
+          Bản demo giữ bản đồ trống thay vì bịa bài đăng, cộng đồng hoặc người
+          dùng giả.
         </div>
       )}
       {error && <div className={styles.errorBanner}>{error}</div>}
@@ -381,8 +453,12 @@ export function SocialExplore() {
         <div className={styles.mapColumn}>
           <SocialMap
             posts={posts}
+            communities={communities}
             selectedId={selected?.id}
             onSelect={(post) => void openPost(post)}
+            onSelectCommunity={(community) =>
+              window.location.assign(`/c/${community.id}`)
+            }
             onBounds={setBounds}
             city={city}
             initialBounds={bounds}
@@ -391,18 +467,52 @@ export function SocialExplore() {
         <aside className={styles.feed}>
           <div className={styles.feedHeader}>
             <div>
-              <strong>Bài địa phương</strong>
-              <span>{posts.length} bài trong vùng bản đồ</span>
+              <strong>Đời sống quanh đây</strong>
+              <span>
+                {communities.length} cộng đồng · {posts.length} bài trong vùng
+                bản đồ
+              </span>
             </div>
             {loading && <LoaderCircle className={styles.spin} size={18} />}
           </div>
-          {posts.length === 0 && !loading ? (
+
+          {communities.length > 0 && (
+            <div>
+              {communities.map((community) => (
+                <Link
+                  key={community.id}
+                  href={`/c/${community.id}`}
+                  className={styles.postCard}
+                >
+                  <div className={styles.postMeta}>
+                    <span className={styles.typeChip}>
+                      {COMMUNITY_CATEGORIES[community.category]}
+                    </span>
+                    <span>Cộng đồng</span>
+                  </div>
+                  <strong>{community.name}</strong>
+                  <p>{community.description || "Cộng đồng địa phương"}</p>
+                  <div className={styles.postFooter}>
+                    <span>
+                      <MapPin size={14} />
+                      {community.place_name || community.area}
+                    </span>
+                    <span>
+                      <Users size={14} /> {community.member_count}
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+
+          {posts.length === 0 && communities.length === 0 && !loading ? (
             <div className={styles.emptyState}>
               <MessageCircle size={30} />
-              <strong>Chưa có tiếng nói nào ở vùng này.</strong>
+              <strong>Chưa có lớp xã hội nào ở vùng này.</strong>
               <p>
                 Vietnam Social không tạo nội dung giả để lấp bản đồ. Người dùng
-                thật sẽ tạo lớp xã hội này.
+                thật sẽ tạo bài và cộng đồng tại đây.
               </p>
               <button
                 className={styles.primaryButton}
@@ -425,6 +535,9 @@ export function SocialExplore() {
                   <span>{localPostAge(post.created_at)}</span>
                 </div>
                 <strong>{post.author.display_name}</strong>
+                {post.community && (
+                  <small>Cộng đồng · {post.community.name}</small>
+                )}
                 <p>{post.body}</p>
                 <div className={styles.postFooter}>
                   <span>
@@ -544,6 +657,128 @@ export function SocialExplore() {
         </Dialog.Portal>
       </Dialog.Root>
 
+      <Dialog.Root open={communityOpen} onOpenChange={setCommunityOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className={styles.overlay} />
+          <Dialog.Content className={styles.modal}>
+            <Dialog.Close className={styles.close} aria-label="Đóng">
+              <X />
+            </Dialog.Close>
+            <Dialog.Title className={styles.modalTitle}>
+              Tạo cộng đồng địa phương
+            </Dialog.Title>
+            <Dialog.Description className={styles.modalDescription}>
+              Cộng đồng phải neo vào một khu vực hoặc địa điểm công cộng.
+              Vietnam Social không công khai vị trí sống trực tiếp của thành
+              viên.
+            </Dialog.Description>
+            <div className={styles.formGrid}>
+              <label>
+                Tên cộng đồng
+                <input
+                  value={communityName}
+                  onChange={(event) => setCommunityName(event.target.value)}
+                  maxLength={80}
+                  placeholder="Ví dụ: Chạy bộ Gò Vấp"
+                />
+              </label>
+              <label>
+                Chủ đề
+                <select
+                  value={communityCategory}
+                  onChange={(event) =>
+                    setCommunityCategory(
+                      event.target.value as CommunityCategory,
+                    )
+                  }
+                >
+                  {Object.entries(COMMUNITY_CATEGORIES).map(
+                    ([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </label>
+              <label>
+                Mô tả
+                <textarea
+                  value={communityDescription}
+                  onChange={(event) =>
+                    setCommunityDescription(event.target.value)
+                  }
+                  maxLength={600}
+                  rows={4}
+                  placeholder="Cộng đồng này dành cho ai và thường làm gì?"
+                />
+              </label>
+              <div className={styles.scopeSwitch}>
+                <button
+                  className={
+                    communityScope === "area" ? styles.scopeActive : ""
+                  }
+                  onClick={() => setCommunityScope("area")}
+                >
+                  Khu vực
+                </button>
+                <button
+                  className={
+                    communityScope === "place" ? styles.scopeActive : ""
+                  }
+                  onClick={() => setCommunityScope("place")}
+                >
+                  Địa điểm công cộng
+                </button>
+              </div>
+              {communityScope === "area" ? (
+                <label>
+                  Khu vực
+                  <select
+                    value={communityArea}
+                    onChange={(event) => setCommunityArea(event.target.value)}
+                  >
+                    {areas.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <label>
+                  Địa điểm
+                  <select
+                    value={communityPlaceId}
+                    onChange={(event) =>
+                      setCommunityPlaceId(event.target.value)
+                    }
+                  >
+                    {places.map((place) => (
+                      <option key={place.id} value={place.id}>
+                        {place.name} · {place.area}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <button
+                className={styles.primaryButton}
+                disabled={pending || communityName.trim().length < 3}
+                onClick={() => void createCommunity()}
+              >
+                {pending ? (
+                  <LoaderCircle className={styles.spin} size={17} />
+                ) : (
+                  <Users size={17} />
+                )}{" "}
+                Tạo cộng đồng
+              </button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
       <Dialog.Root
         open={Boolean(selected)}
         onOpenChange={(open) => !open && setSelected(null)}
@@ -568,6 +803,14 @@ export function SocialExplore() {
                 <Dialog.Description className={styles.modalDescription}>
                   Bài địa phương tại {selected.area}
                 </Dialog.Description>
+                {selected.community && (
+                  <Link
+                    className={styles.navLink}
+                    href={`/c/${selected.community.id}`}
+                  >
+                    <Users size={15} /> {selected.community.name}
+                  </Link>
+                )}
                 <Link
                   className={styles.authorCard}
                   href={`/u/${selected.author.id}`}

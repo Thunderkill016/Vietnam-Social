@@ -8,6 +8,7 @@ export default defineConfig([
     files: [
       "src/components/social-explore.tsx",
       "src/components/public-profile.tsx",
+      "src/components/community-page.tsx",
     ],
     rules: {
       // These components intentionally hydrate external Supabase/API state from effects.
